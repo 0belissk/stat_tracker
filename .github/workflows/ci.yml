@@ -1,0 +1,10 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder step
+        run: echo "Configure CI workflow"

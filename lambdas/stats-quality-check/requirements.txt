@@ -1,0 +1,1 @@
+# Placeholder dependencies for the stats quality check lambda
