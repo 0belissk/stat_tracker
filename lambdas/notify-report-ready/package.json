@@ -1,0 +1,6 @@
+{
+  "name": "notify-report-ready",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Placeholder package configuration for the notify report ready lambda"
+}
