@@ -1,1 +1,1 @@
-# Placeholder for cognito module variables
+variable "name_prefix" { type = string }
