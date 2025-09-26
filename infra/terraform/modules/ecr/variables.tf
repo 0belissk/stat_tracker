@@ -1,1 +1,1 @@
-# Placeholder for ecr module variables
+variable "repo_name" { type = string }
