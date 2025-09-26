@@ -1,1 +1,4 @@
-# Placeholder for ecr module variables
+variable "repo_name" {
+  description = "Name of the ECR repository"
+  type        = string
+}
