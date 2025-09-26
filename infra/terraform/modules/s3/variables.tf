@@ -1,3 +1,14 @@
-variable "name_prefix" { type = string }
-variable "raw_bucket_name" { type = string }
-variable "report_bucket_name" { type = string }
+variable "name_prefix" {
+  description = "Prefix used for naming the S3 resources"
+  type        = string
+}
+
+variable "raw_bucket_name" {
+  description = "Name of the raw uploads bucket"
+  type        = string
+}
+
+variable "report_bucket_name" {
+  description = "Name of the reports bucket"
+  type        = string
+}

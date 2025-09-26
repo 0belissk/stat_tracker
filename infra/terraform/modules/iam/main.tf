@@ -1,71 +1,192 @@
-// ECS task execution role
-resource "aws_iam_role" "ecs_task_execution" {
-  name = "${var.name_prefix}-ecs-task-exec"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{ Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" }, Action = "sts:AssumeRole" }]
-  })
+locals {
+  raw_bucket_objects     = "${var.s3_raw_bucket_arn}/*"
+  reports_bucket_objects = "${var.s3_reports_bucket_arn}/*"
+  ddb_table_indexes_arn  = "${var.ddb_table_arn}/index/*"
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_exec_policy" {
+############################
+# ECS task execution role
+############################
+data "aws_iam_policy_document" "ecs_assume" {
+  statement {
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_task_execution" {
+  name               = "${var.name_prefix}-ecs-task-exec"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+  tags = { Name = "${var.name_prefix}-ecs-task-exec" }
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   role       = aws_iam_role.ecs_task_execution.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-// ECS task role (app permissions — least-privilege placeholders)
+############################
+# ECS task role (app perms)
+############################
+data "aws_iam_policy_document" "ecs_task" {
+  statement {
+    sid     = "DynamoDbAccess"
+    effect  = "Allow"
+    actions = [
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+      "dynamodb:DescribeTable"
+    ]
+    resources = [var.ddb_table_arn, local.ddb_table_indexes_arn]
+  }
+
+  statement {
+    sid     = "S3ObjectAccess"
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [local.raw_bucket_objects, local.reports_bucket_objects]
+  }
+
+  statement {
+    sid     = "S3List"
+    effect  = "Allow"
+    actions = ["s3:ListBucket"]
+    resources = [var.s3_raw_bucket_arn, var.s3_reports_bucket_arn]
+  }
+
+  statement {
+    sid     = "KmsForS3Objects"
+    effect  = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = [var.kms_key_arn]
+  }
+
+  statement {
+    sid     = "EventBridge"
+    effect  = "Allow"
+    actions   = ["events:PutEvents"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid     = "XRay"
+    effect  = "Allow"
+    actions = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+    resources = ["*"]
+  }
+}
+
 resource "aws_iam_role" "ecs_task" {
-  name = "${var.name_prefix}-ecs-task"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{ Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" }, Action = "sts:AssumeRole" }]
-  })
+  name               = "${var.name_prefix}-ecs-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+  tags = { Name = "${var.name_prefix}-ecs-task" }
 }
 
-resource "aws_iam_policy" "ecs_task_app" {
-  name = "${var.name_prefix}-ecs-task-app"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      { Effect = "Allow", Action = ["dynamodb:PutItem","dynamodb:Query","dynamodb:GetItem","dynamodb:UpdateItem"], Resource = [var.ddb_table_arn, "${var.ddb_table_arn}/index/*"] },
-      { Effect = "Allow", Action = ["s3:PutObject","s3:GetObject"], Resource = ["${var.s3_reports_bucket_arn}/*"] },
-      { Effect = "Allow", Action = ["events:PutEvents"], Resource = "*" },
-      { Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" }
+resource "aws_iam_role_policy" "ecs_task" {
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.ecs_task.json
+}
+
+############################
+# Lambda basic role + extras
+############################
+data "aws_iam_policy_document" "lambda_assume" {
+  statement {
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "lambda" {
+  name               = "${var.name_prefix}-lambda"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags = { Name = "${var.name_prefix}-lambda" }
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "lambda_extra" {
+  statement {
+    sid     = "S3Access"
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+    resources = [
+      var.s3_raw_bucket_arn,      local.raw_bucket_objects,
+      var.s3_reports_bucket_arn,  local.reports_bucket_objects
     ]
-  })
-}
+  }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_app_attach" {
-  role       = aws_iam_role.ecs_task.name
-  policy_arn = aws_iam_policy.ecs_task_app.arn
-}
-
-// Lambda basic role (reuse for csv-validate/notify)
-resource "aws_iam_role" "lambda_basic" {
-  name = "${var.name_prefix}-lambda-basic"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{ Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole" }]
-  })
-}
-
-resource "aws_iam_policy" "lambda_policy" {
-  name = "${var.name_prefix}-lambda-policy"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      { Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "*" },
-      { Effect = "Allow", Action = ["s3:GetObject","s3:PutObject"], Resource = ["${var.s3_raw_bucket_arn}/*","${var.s3_reports_bucket_arn}/*"] },
-      { Effect = "Allow", Action = ["dynamodb:BatchWriteItem","dynamodb:PutItem","dynamodb:UpdateItem"], Resource = var.ddb_table_arn },
-      { Effect = "Allow", Action = ["events:PutEvents","ses:SendEmail","ses:SendRawEmail"], Resource = "*" }
+  statement {
+    sid     = "KmsForS3Objects"
+    effect  = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
     ]
-  })
+    resources = [var.kms_key_arn]
+  }
+
+  statement {
+    sid     = "DynamoDbAccess"
+    effect  = "Allow"
+    actions = [
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+      "dynamodb:DescribeTable"
+    ]
+    resources = [var.ddb_table_arn, local.ddb_table_indexes_arn]
+  }
+
+  statement {
+    sid     = "EventBridge"
+    effect  = "Allow"
+    actions   = ["events:PutEvents"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid     = "SES"
+    effect  = "Allow"
+    actions = ["ses:SendEmail", "ses:SendRawEmail"]
+    resources = ["*"]
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
-  role       = aws_iam_role.lambda_basic.name
-  policy_arn = aws_iam_policy.lambda_policy.arn
+resource "aws_iam_role_policy" "lambda_extra" {
+  role   = aws_iam_role.lambda.id
+  policy = data.aws_iam_policy_document.lambda_extra.json
 }
 
+# Useful outputs
 output "ecs_task_execution_role_arn" { value = aws_iam_role.ecs_task_execution.arn }
 output "ecs_task_role_arn"           { value = aws_iam_role.ecs_task.arn }
-output "lambda_role_arn"             { value = aws_iam_role.lambda_basic.arn }
+output "lambda_role_arn"             { value = aws_iam_role.lambda.arn }
