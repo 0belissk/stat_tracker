@@ -1,1 +1,14 @@
 # TODO: add project-specific ignore patterns
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# Local plans
+tfplan
+*.plan
