@@ -4,12 +4,13 @@ locals {
   ddb_table_indexes_arn  = "${var.ddb_table_arn}/index/*"
 }
 
+############################
+# ECS task execution role
+############################
 data "aws_iam_policy_document" "ecs_assume" {
   statement {
     effect = "Allow"
-
     actions = ["sts:AssumeRole"]
-
     principals {
       type        = "Service"
       identifiers = ["ecs-tasks.amazonaws.com"]
@@ -20,10 +21,7 @@ data "aws_iam_policy_document" "ecs_assume" {
 resource "aws_iam_role" "ecs_task_execution" {
   name               = "${var.name_prefix}-ecs-task-exec"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
-
-  tags = {
-    Name = "${var.name_prefix}-ecs-task-exec"
-  }
+  tags = { Name = "${var.name_prefix}-ecs-task-exec" }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
@@ -31,11 +29,13 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+############################
+# ECS task role (app perms)
+############################
 data "aws_iam_policy_document" "ecs_task" {
   statement {
-    sid    = "DynamoDbAccess"
-    effect = "Allow"
-
+    sid     = "DynamoDbAccess"
+    effect  = "Allow"
     actions = [
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
@@ -46,57 +46,47 @@ data "aws_iam_policy_document" "ecs_task" {
       "dynamodb:UpdateItem",
       "dynamodb:DescribeTable"
     ]
-
-    resources = [
-      var.ddb_table_arn,
-      local.ddb_table_indexes_arn
-    ]
+    resources = [var.ddb_table_arn, local.ddb_table_indexes_arn]
   }
 
   statement {
-    sid    = "S3ObjectAccess"
-    effect = "Allow"
-
-    actions = [
-      "s3:GetObject",
-      "s3:PutObject",
-      "s3:DeleteObject"
-    ]
-
-    resources = [
-      local.raw_bucket_objects,
-      local.reports_bucket_objects
-    ]
+    sid     = "S3ObjectAccess"
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [local.raw_bucket_objects, local.reports_bucket_objects]
   }
 
   statement {
-    sid    = "S3List"
-    effect = "Allow"
-
+    sid     = "S3List"
+    effect  = "Allow"
     actions = ["s3:ListBucket"]
-    resources = [
-      var.s3_raw_bucket_arn,
-      var.s3_reports_bucket_arn
-    ]
+    resources = [var.s3_raw_bucket_arn, var.s3_reports_bucket_arn]
   }
 
   statement {
-    sid    = "EventBridge"
-    effect = "Allow"
+    sid     = "KmsForS3Objects"
+    effect  = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = [var.kms_key_arn]
+  }
 
+  statement {
+    sid     = "EventBridge"
+    effect  = "Allow"
     actions   = ["events:PutEvents"]
     resources = ["*"]
   }
 
   statement {
-    sid    = "XRay"
-    effect = "Allow"
-
-    actions = [
-      "xray:PutTraceSegments",
-      "xray:PutTelemetryRecords"
-    ]
-
+    sid     = "XRay"
+    effect  = "Allow"
+    actions = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
     resources = ["*"]
   }
 }
@@ -104,10 +94,7 @@ data "aws_iam_policy_document" "ecs_task" {
 resource "aws_iam_role" "ecs_task" {
   name               = "${var.name_prefix}-ecs-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
-
-  tags = {
-    Name = "${var.name_prefix}-ecs-task"
-  }
+  tags = { Name = "${var.name_prefix}-ecs-task" }
 }
 
 resource "aws_iam_role_policy" "ecs_task" {
@@ -115,12 +102,13 @@ resource "aws_iam_role_policy" "ecs_task" {
   policy = data.aws_iam_policy_document.ecs_task.json
 }
 
+############################
+# Lambda basic role + extras
+############################
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
     effect = "Allow"
-
     actions = ["sts:AssumeRole"]
-
     principals {
       type        = "Service"
       identifiers = ["lambda.amazonaws.com"]
@@ -131,10 +119,7 @@ data "aws_iam_policy_document" "lambda_assume" {
 resource "aws_iam_role" "lambda" {
   name               = "${var.name_prefix}-lambda"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-
-  tags = {
-    Name = "${var.name_prefix}-lambda"
-  }
+  tags = { Name = "${var.name_prefix}-lambda" }
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
@@ -144,28 +129,31 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 
 data "aws_iam_policy_document" "lambda_extra" {
   statement {
-    sid    = "S3Access"
-    effect = "Allow"
-
-    actions = [
-      "s3:GetObject",
-      "s3:PutObject",
-      "s3:DeleteObject",
-      "s3:ListBucket"
-    ]
-
+    sid     = "S3Access"
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
     resources = [
-      var.s3_raw_bucket_arn,
-      local.raw_bucket_objects,
-      var.s3_reports_bucket_arn,
-      local.reports_bucket_objects
+      var.s3_raw_bucket_arn,      local.raw_bucket_objects,
+      var.s3_reports_bucket_arn,  local.reports_bucket_objects
     ]
   }
 
   statement {
-    sid    = "DynamoDbAccess"
-    effect = "Allow"
+    sid     = "KmsForS3Objects"
+    effect  = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = [var.kms_key_arn]
+  }
 
+  statement {
+    sid     = "DynamoDbAccess"
+    effect  = "Allow"
     actions = [
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
@@ -175,30 +163,20 @@ data "aws_iam_policy_document" "lambda_extra" {
       "dynamodb:UpdateItem",
       "dynamodb:DescribeTable"
     ]
-
-    resources = [
-      var.ddb_table_arn,
-      local.ddb_table_indexes_arn
-    ]
+    resources = [var.ddb_table_arn, local.ddb_table_indexes_arn]
   }
 
   statement {
-    sid    = "EventBridge"
-    effect = "Allow"
-
+    sid     = "EventBridge"
+    effect  = "Allow"
     actions   = ["events:PutEvents"]
     resources = ["*"]
   }
 
   statement {
-    sid    = "SES"
-    effect = "Allow"
-
-    actions = [
-      "ses:SendEmail",
-      "ses:SendRawEmail"
-    ]
-
+    sid     = "SES"
+    effect  = "Allow"
+    actions = ["ses:SendEmail", "ses:SendRawEmail"]
     resources = ["*"]
   }
 }
@@ -207,3 +185,8 @@ resource "aws_iam_role_policy" "lambda_extra" {
   role   = aws_iam_role.lambda.id
   policy = data.aws_iam_policy_document.lambda_extra.json
 }
+
+# Useful outputs
+output "ecs_task_execution_role_arn" { value = aws_iam_role.ecs_task_execution.arn }
+output "ecs_task_role_arn"           { value = aws_iam_role.ecs_task.arn }
+output "lambda_role_arn"             { value = aws_iam_role.lambda.arn }

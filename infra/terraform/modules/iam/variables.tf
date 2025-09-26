@@ -17,3 +17,8 @@ variable "s3_raw_bucket_arn" {
   description = "ARN of the raw uploads S3 bucket"
   type        = string
 }
+
+variable "kms_key_arn" {
+  description = "ARN of the KMS CMK backing S3 SSE-KMS"
+  type        = string
+}
