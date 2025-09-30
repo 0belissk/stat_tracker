@@ -8,3 +8,18 @@ jobs:
     steps:
       - name: Placeholder step
         run: echo "Configure CI workflow"
+
+  build-java:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/players-api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Build
+        run: ./mvnw -q -e -DskipTests package
