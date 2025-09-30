@@ -21,5 +21,5 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Build
-        run: ./mvnw -q -e -DskipTests package
+      - name: Build & Test
+        run: ./mvnw -q -e verify
