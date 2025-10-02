@@ -4,6 +4,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { AppComponent } from './app.component';
 import { NavbarComponent } from './shared/navbar.component';
 import { AuthService } from './auth/auth.service';
+import { OAuthService } from 'angular-oauth2-oidc';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
@@ -13,10 +14,24 @@ describe('AppComponent', () => {
       logout: () => void 0,
     };
 
+    const oauthServiceStub: Partial<OAuthService> = {
+      configure: () => void 0,
+      setupAutomaticSilentRefresh: () => void 0,
+      loadDiscoveryDocumentAndTryLogin: () => Promise.resolve(),
+      hasValidAccessToken: () => false,
+      hasValidIdToken: () => false,
+      getAccessToken: () => null,
+      initLoginFlow: () => void 0,
+      logOut: () => void 0,
+    };
+
     await TestBed.configureTestingModule({
       imports: [RouterTestingModule, NavbarComponent],
       declarations: [AppComponent],
-      providers: [{ provide: AuthService, useValue: authServiceStub }],
+      providers: [
+        { provide: AuthService, useValue: authServiceStub },
+        { provide: OAuthService, useValue: oauthServiceStub },
+      ],
     }).compileComponents();
   });
 
