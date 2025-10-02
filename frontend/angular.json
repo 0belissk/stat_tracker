@@ -55,14 +55,14 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "vsm-portal:build"
+            "buildTarget": "vsm-portal:build"
           },
           "configurations": {
             "production": {
-              "browserTarget": "vsm-portal:build:production"
+              "buildTarget": "vsm-portal:build:production"
             },
             "development": {
-              "browserTarget": "vsm-portal:build:development"
+              "buildTarget": "vsm-portal:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -81,7 +81,6 @@
       }
     }
   },
-  "defaultProject": "vsm-portal",
   "cli": {
     "analytics": false
   }

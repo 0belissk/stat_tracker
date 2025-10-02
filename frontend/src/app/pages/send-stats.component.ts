@@ -23,10 +23,10 @@ import { NgFor, NgIf } from '@angular/common';
       <div class="error" *ngIf="f.playerEmail.touched && f.playerEmail.invalid">Valid email is required.</div>
     </div>
 
-    <fieldset class="field">
+    <fieldset class="field" formArrayName="categories">
       <legend>Categories</legend>
 
-      <div *ngFor="let group of categories.controls; let i = index" [formGroup]="group" class="row">
+      <div *ngFor="let _ of categories.controls; let i = index" [formGroupName]="i" class="row">
         <input type="text" placeholder="Category (e.g., Aces)" formControlName="key" required>
         <input type="text" placeholder="Value (e.g., 5)" formControlName="value" required>
         <button type="button" (click)="removeCategory(i)" aria-label="Remove category">✕</button>
@@ -57,25 +57,62 @@ import { NgFor, NgIf } from '@angular/common';
   `],
   imports: [ReactiveFormsModule, NgIf, NgFor]
 })
+type CategoryFormGroup = FormGroup<{ key: FormControl<string>; value: FormControl<string> }>;
+
+type SendStatsFormGroup = FormGroup<{
+  playerId: FormControl<string>;
+  playerEmail: FormControl<string>;
+  categories: FormArray<CategoryFormGroup>;
+}>;
+
 export class SendStatsComponent {
-  form: FormGroup;
+  readonly form: SendStatsFormGroup = this.fb.nonNullable.group({
+    playerId: ['', Validators.required],
+    playerEmail: ['', [Validators.required, Validators.email]],
+    categories: this.fb.array<CategoryFormGroup>([this.createCategory()]),
+  });
+
   previewText = '';
-  get categories(): FormArray { return this.form.get('categories') as FormArray; }
-  get f() { return this.form.controls as any; }
-  constructor(private fb: FormBuilder) {
-    this.form = this.fb.group({
-      playerId: ['', Validators.required],
-      playerEmail: ['', [Validators.required, Validators.email]],
-      categories: this.fb.array([this.createCategory()])
-    });
+
+  constructor(private fb: FormBuilder) {}
+
+  get categories(): FormArray<CategoryFormGroup> {
+    return this.form.controls.categories;
   }
-  createCategory(): FormGroup { return this.fb.group({ key: new FormControl('', Validators.required), value: new FormControl('', Validators.required) }); }
-  addCategory() { this.categories.push(this.createCategory()); }
-  removeCategory(i: number) { this.categories.removeAt(i); }
-  onSubmit() {
-    if (this.form.invalid) return;
-    const { playerId, playerEmail, categories } = this.form.value;
-    const lines = [`PlayerId: ${playerId}`, `PlayerEmail: ${playerEmail}`, ...categories.map((c: any) => `${c.key}: ${c.value}`)];
+
+  get f() {
+    return this.form.controls;
+  }
+
+  addCategory(): void {
+    this.categories.push(this.createCategory());
+  }
+
+  removeCategory(index: number): void {
+    this.categories.removeAt(index);
+  }
+
+  onSubmit(): void {
+    if (this.form.invalid) {
+      return;
+    }
+
+    const { playerId, playerEmail } = this.form.getRawValue();
+    const categories = this.categories.getRawValue();
+
+    const lines = [
+      `PlayerId: ${playerId}`,
+      `PlayerEmail: ${playerEmail}`,
+      ...categories.map((category) => `${category.key}: ${category.value}`),
+    ];
+
     this.previewText = lines.join('\n');
+  }
+
+  private createCategory(): CategoryFormGroup {
+    return this.fb.nonNullable.group({
+      key: ['', Validators.required],
+      value: ['', Validators.required],
+    });
   }
 }
