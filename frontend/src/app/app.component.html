@@ -1,4 +1,7 @@
-<app-navbar></app-navbar>
-<main class="container">
+<nav style="padding:12px; border-bottom:1px solid #eee; display:flex; gap:12px;">
+  <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Home</a>
+  <a routerLink="/send" routerLinkActive="active">Send Stats</a>
+</nav>
+<main style="padding:16px;">
   <router-outlet></router-outlet>
 </main>

@@ -1,16 +1,11 @@
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { AuthService } from '../auth/auth.service';
+import { Component } from '@angular/core';
 
 @Component({
-  standalone: true,
   selector: 'app-auth-callback',
-  template: `<p>Signing you in…</p>`,
+  standalone: true,
+  template: `
+    <h2>Auth Callback</h2>
+    <p>You have been redirected back from login. If nothing happens, <a routerLink="/send">continue to Send Stats</a>.</p>
+  `
 })
-export class AuthCallbackComponent implements OnInit {
-  constructor(private router: Router, private auth: AuthService) {}
-  async ngOnInit() {
-    await new Promise(r => setTimeout(r, 300));
-    this.router.navigateByUrl('/send');
-  }
-}
+export class AuthCallbackComponent {}
