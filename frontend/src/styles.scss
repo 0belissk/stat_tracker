@@ -1,0 +1,21 @@
+@use "sass:map";
+
+:root {
+  color-scheme: light;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  background-color: #ffffff;
+  color: #222;
+}
+
+main.container {
+  padding: 1.5rem;
+}
+
+a {
+  color: inherit;
+}
