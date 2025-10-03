@@ -33,6 +33,14 @@ module "ddb" {
 module "cognito" {
   source      = "../../modules/cognito"
   name_prefix = var.name_prefix
+  callback_urls = [
+    "http://localhost:4200/auth/callback",
+    "https://${var.app_domain}/auth/callback",
+  ]
+  logout_urls = [
+    "http://localhost:4200/",
+    "https://${var.app_domain}/",
+  ]
 }
 
 module "ecr" {

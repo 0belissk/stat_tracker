@@ -5,23 +5,30 @@ import { environment } from '../../environments/environment';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private authConfig: AuthConfig = {
-    issuer: `https://cognito-idp.${environment.cognito.region}.amazonaws.com/${environment.cognito.userPoolId}`,
+    issuer: environment.cognito.issuer,
     clientId: environment.cognito.clientId,
     redirectUri: environment.cognito.redirectUri,
     postLogoutRedirectUri: environment.cognito.postLogoutRedirectUri,
-    responseType: 'code',
+    responseType: environment.cognito.responseType,
     scope: environment.cognito.scope,
     showDebugInformation: false,
     timeoutFactor: 0.75,
-    useSilentRefresh: false,
-    disablePKCE: false,
+    usePkce: environment.cognito.usePkce,
+    ...(environment.cognito.silentRefreshRedirectUri
+      ? {
+          useSilentRefresh: true,
+          silentRefreshRedirectUri: environment.cognito.silentRefreshRedirectUri,
+        }
+      : { useSilentRefresh: false }),
   };
 
   constructor(private oauth: OAuthService) {}
 
   async init(): Promise<void> {
     this.oauth.configure(this.authConfig);
-    this.oauth.setupAutomaticSilentRefresh();
+    if (environment.cognito.silentRefreshRedirectUri) {
+      this.oauth.setupAutomaticSilentRefresh();
+    }
     await this.oauth.loadDiscoveryDocumentAndTryLogin();
   }
 
