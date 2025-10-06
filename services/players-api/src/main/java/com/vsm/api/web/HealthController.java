@@ -1,6 +1,6 @@
 package com.vsm.api.web;
 
-import org.springframework.boot.actuate.health.Health;
+import org.springframework.boot.actuate.health.HealthComponent;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +16,7 @@ public class HealthController {
     }
 
     @GetMapping("/health")
-    public ResponseEntity<Health> health() {
+    public ResponseEntity<HealthComponent> health() {
         return ResponseEntity.ok(healthEndpoint.health());
     }
 }
