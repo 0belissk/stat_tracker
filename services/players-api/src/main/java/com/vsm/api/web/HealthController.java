@@ -1,10 +1,13 @@
 package com.vsm.api.web;
 
-import org.springframework.boot.actuate.health.HealthComponent;
 import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.actuate.health.Status;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 public class HealthController {
@@ -16,7 +19,9 @@ public class HealthController {
     }
 
     @GetMapping("/health")
-    public ResponseEntity<HealthComponent> health() {
-        return ResponseEntity.ok(healthEndpoint.health());
+    public ResponseEntity<Map<String, String>> health() {
+        Status status = this.healthEndpoint.health().getStatus();
+        HttpStatus httpStatus = Status.UP.equals(status) ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(httpStatus).body(Map.of("status", status.getCode()));
     }
 }
