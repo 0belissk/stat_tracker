@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.vsm.api.web.CoachReportsControllerTest
+-------------------------------------------------------------------------------
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.662 s -- in com.vsm.api.web.CoachReportsControllerTest
