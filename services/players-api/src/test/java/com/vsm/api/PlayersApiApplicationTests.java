@@ -8,8 +8,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("local") // disable auth for test boot
 class PlayersApiApplicationTests {
 
-    @Test
-    void contextLoads() {
-        // if the app context fails to start, this test fails
-    }
+  @Test
+  void contextLoads() {
+    // if the app context fails to start, this test fails
+  }
 }

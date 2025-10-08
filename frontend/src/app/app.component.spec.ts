@@ -17,10 +17,10 @@ describe('AppComponent', () => {
     const oauthServiceStub: Partial<OAuthService> = {
       configure: () => void 0,
       setupAutomaticSilentRefresh: () => void 0,
-      loadDiscoveryDocumentAndTryLogin: () => Promise.resolve(),
+      loadDiscoveryDocumentAndTryLogin: () => Promise.resolve(true),
       hasValidAccessToken: () => false,
       hasValidIdToken: () => false,
-      getAccessToken: () => null,
+      getAccessToken: () => '',
       initLoginFlow: () => void 0,
       logOut: () => void 0,
     };

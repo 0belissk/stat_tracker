@@ -1,5 +1,0 @@
-com/vsm/api/config/SecurityConfig.class
-com/vsm/api/web/HealthController.class
-com/vsm/api/web/CoachReportsController.class
-com/vsm/api/PlayersApiApplication.class
-com/vsm/api/model/ReportRequest.class

@@ -1,7 +1,0 @@
-# Local profile: disable auth (see SecurityConfig @Profile("local"))
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ""

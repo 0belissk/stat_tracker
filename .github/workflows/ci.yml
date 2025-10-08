@@ -1,14 +1,11 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Placeholder step
-        run: echo "Configure CI workflow"
-
   build-java:
     runs-on: ubuntu-latest
     defaults:
@@ -20,6 +17,22 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
-      - name: Build & Test
-        run: ./mvnw -q -e verify
+          java-version: '21'
+      - name: Build & Test (verify)
+        run: ./mvnw -B verify
+
+  build-angular:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format
+      - run: npm run test
+

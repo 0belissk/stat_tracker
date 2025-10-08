@@ -25,8 +25,12 @@ export class AuthService {
     await this.oauth.loadDiscoveryDocumentAndTryLogin();
   }
 
-  login(): void { this.oauth.initLoginFlow(); }
-  logout(): void { this.oauth.logOut(); }
+  login(): void {
+    this.oauth.initLoginFlow();
+  }
+  logout(): void {
+    this.oauth.logOut();
+  }
 
   get accessToken(): string | null {
     return this.oauth.hasValidAccessToken() ? this.oauth.getAccessToken() : null;
