@@ -19,8 +19,8 @@ export function initAuth(auth: AuthService) {
   imports: [BrowserModule, HttpClientModule, AppRoutingModule, OAuthModule.forRoot()],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true },
-    { provide: APP_INITIALIZER, useFactory: initAuth, deps: [AuthService], multi: true }
+    { provide: APP_INITIALIZER, useFactory: initAuth, deps: [AuthService], multi: true },
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
 })
 export class AppModule {}

@@ -12,3 +12,20 @@ override.tf.json
 # Local plans
 tfplan
 *.plan
+
+# Java / Maven
+**/target/
+*.class
+*.jar
+*.war
+
+# Node / Angular
+**/node_modules/
+**/dist/
+**/coverage/
+**/.angular/
+
+# IDE
+.idea/
+.vscode/
+*.iml

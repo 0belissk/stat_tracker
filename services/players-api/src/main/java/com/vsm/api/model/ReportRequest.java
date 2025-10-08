@@ -7,22 +7,33 @@ import java.util.Map;
 
 public class ReportRequest {
 
-    @NotBlank
-    private String playerId;
+  @NotBlank private String playerId;
 
-    @Email
-    @NotBlank
-    private String playerEmail;
+  @Email @NotBlank private String playerEmail;
 
-    @NotEmpty
-    private Map<@NotBlank String, @NotBlank String> categories;
+  @NotEmpty private Map<@NotBlank String, @NotBlank String> categories;
 
-    public String getPlayerId() { return playerId; }
-    public void setPlayerId(String playerId) { this.playerId = playerId; }
+  public String getPlayerId() {
+    return playerId;
+  }
 
-    public String getPlayerEmail() { return playerEmail; }
-    public void setPlayerEmail(String playerEmail) { this.playerEmail = playerEmail; }
+  public void setPlayerId(String playerId) {
+    this.playerId = playerId;
+  }
 
-    public Map<String, String> getCategories() { return categories; }
-    public void setCategories(Map<String, String> categories) { this.categories = categories; }
+  public String getPlayerEmail() {
+    return playerEmail;
+  }
+
+  public void setPlayerEmail(String playerEmail) {
+    this.playerEmail = playerEmail;
+  }
+
+  public Map<String, String> getCategories() {
+    return categories;
+  }
+
+  public void setCategories(Map<String, String> categories) {
+    this.categories = categories;
+  }
 }

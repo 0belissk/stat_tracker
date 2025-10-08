@@ -8,6 +8,6 @@ export const environment = {
     hostedUiDomain: 'vsm-dev-portal.auth.us-east-1.amazoncognito.com',
     redirectUri: 'http://localhost:4200/auth/callback',
     postLogoutRedirectUri: 'http://localhost:4200/',
-    scope: 'openid profile email'
-  }
+    scope: 'openid profile email',
+  },
 };
