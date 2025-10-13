@@ -17,6 +17,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Two modes:
+ *
  * <ol>
  *   <li>Normal (auth enabled): JWT required for /api/**</li>
  *   <li>Local profile (spring.profiles.active=local): auth disabled for developer convenience</li>

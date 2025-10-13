@@ -31,11 +31,8 @@ public class CoachReportRepository {
     item.put("createdAt", AttributeValue.builder().s(Instant.now().toString()).build());
 
     Map<String, AttributeValue> categories = new HashMap<>();
-    report
-        .categories()
-        .forEach(
-            (key, value) ->
-                categories.put(key, AttributeValue.builder().s(value).build()));
+    report.categories()
+        .forEach((key, value) -> categories.put(key, AttributeValue.builder().s(value).build()));
     item.put("categories", AttributeValue.builder().m(categories).build());
 
     PutItemRequest request =
