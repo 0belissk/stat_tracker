@@ -16,8 +16,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Two modes: 1) Normal (auth enabled): JWT required for /api/** 2) Local profile
- * (spring.profiles.active=local): auth disabled, everything permitted (dev convenience)
+ * Two modes:
+ * <ol>
+ *   <li>Normal (auth enabled): JWT required for /api/**</li>
+ *   <li>Local profile (spring.profiles.active=local): auth disabled for developer convenience</li>
+ * </ol>
  */
 @Configuration
 public class SecurityConfig {

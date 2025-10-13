@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vsm.api.config.SecurityConfig;
 import com.vsm.api.domain.report.CoachReportService;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
 import com.vsm.api.model.ReportRequest;
@@ -25,7 +26,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(CoachReportsController.class)
-@Import(com.vsm.api.config.SecurityConfig.class)
+@Import(SecurityConfig.class)
 class CoachReportsControllerTest {
 
   @Autowired private MockMvc mvc;
@@ -81,8 +82,10 @@ class CoachReportsControllerTest {
                 .header("reportId", timestamp)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(request))
-                .with(jwt().jwt(jwt -> jwt.subject("coach-123"))
-                    .authorities(new SimpleGrantedAuthority("ROLE_COACH"))))
+                .with(
+                    jwt()
+                        .jwt(jwt -> jwt.subject("coach-123"))
+                        .authorities(new SimpleGrantedAuthority("ROLE_COACH"))))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.reportId").value(timestamp))
         .andExpect(jsonPath("$.status").value("QUEUED"));

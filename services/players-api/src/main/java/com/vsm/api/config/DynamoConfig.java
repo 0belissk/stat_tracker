@@ -15,8 +15,7 @@ public class DynamoConfig {
   DynamoDbClient dynamoDbClient(
       @Value("${app.aws.region}") String region,
       @Value("${app.aws.dynamodb-endpoint:}") String endpointOverride) {
-    DynamoDbClientBuilder builder =
-        DynamoDbClient.builder().region(Region.of(region));
+    DynamoDbClientBuilder builder = DynamoDbClient.builder().region(Region.of(region));
     if (endpointOverride != null && !endpointOverride.isBlank()) {
       builder.endpointOverride(URI.create(endpointOverride));
     }
