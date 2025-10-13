@@ -27,3 +27,10 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  aws:
+    region: ${AWS_REGION:us-east-1}
+    dynamodb-endpoint: ${DYNAMODB_ENDPOINT:}
+  reports:
+    table-name: ${REPORTS_TABLE_NAME:vsm-main}
