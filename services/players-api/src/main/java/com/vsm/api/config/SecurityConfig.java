@@ -48,14 +48,17 @@ public class SecurityConfig {
                     .anyRequest()
                     .permitAll())
         .oauth2ResourceServer(
-            oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+            oauth2 ->
+                oauth2.jwt(
+                    jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
     return http.build();
   }
 
   @Bean
   @Profile("local")
   SecurityFilterChain localAllOpen(HttpSecurity http) throws Exception {
-    http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(reg -> reg.anyRequest().permitAll());
+    http.csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(reg -> reg.anyRequest().permitAll());
     return http.build();
   }
 
