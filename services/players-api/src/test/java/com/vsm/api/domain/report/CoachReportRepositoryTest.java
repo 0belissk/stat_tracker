@@ -38,7 +38,7 @@ class CoachReportRepositoryTest {
 
     PutItemRequest request = captor.getValue();
     assertEquals("coach_reports", request.tableName());
-    assertEquals("attribute_not_exists(PK)", request.conditionExpression());
+    assertEquals("attribute_not_exists(SK)", request.conditionExpression());
 
     Map<String, AttributeValue> item = request.item();
     assertEquals("PLAYER#player-1", item.get("PK").s());
