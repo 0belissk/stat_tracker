@@ -4,8 +4,6 @@ server:
 spring:
   application:
     name: players-api
-
-  # Default profile: "dev" (auth enabled). Set issuer via env var COGNITO_ISSUER_URI
   security:
     oauth2:
       resourceserver:
@@ -32,12 +30,17 @@ app:
   aws:
     region: ${AWS_REGION:us-east-1}
     dynamodb-endpoint: ${DYNAMODB_ENDPOINT:}
-    s3-endpoint: ${S3_ENDPOINT:}
-    eventbridge-endpoint: ${EVENTBRIDGE_ENDPOINT:}
+    s3-endpoint: ${S3_ENDPOINT:} # optional local override
+    eventbridge-endpoint: ${EVENTBRIDGE_ENDPOINT:} # optional local override
   reports:
     table-name: ${REPORTS_TABLE_NAME:vsm-main}
-    bucket-name: ${REPORTS_BUCKET_NAME:todo:set-report-bucket}
-    kms-key-id: ${REPORTS_KMS_KEY_ID:todo:set-kms-key-id}
-    s3-prefix: ${REPORTS_S3_PREFIX:reports}
-    event-bus-name: ${REPORTS_EVENT_BUS_NAME:default}
-    event-source: ${REPORTS_EVENT_SOURCE:players-api.reports}
+  s3:
+    reportsBucket: ${REPORTS_BUCKET_NAME:Todo: S3 reports bucket name}
+    keyPrefix: ${REPORTS_KEY_PREFIX:Todo: Optional prefix like 'reports/'}
+  kms:
+    keyArn: ${REPORTS_KMS_KEY_ARN:Todo: KMS key ARN for SSE-KMS}
+  events:
+    busName: ${EVENTBUS_NAME:Todo: EventBridge bus name}
+    source: ${EVENT_SOURCE:Todo: Event source string (e.g., 'com.vsm.reports')}
+    detailType:
+      reportCreated: ${EVENT_DETAIL_TYPE_REPORT_CREATED:Todo: Event detail-type (e.g., 'report.created')}

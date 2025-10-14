@@ -8,10 +8,10 @@ import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 @Repository
 public class CoachReportRepository {
-
   private final DynamoDbClient dynamoDbClient;
   private final String tableName;
 
@@ -21,20 +21,17 @@ public class CoachReportRepository {
     this.tableName = tableName;
   }
 
-  public void save(CoachReport report, String s3Key) {
+  public void save(CoachReport report) {
     Map<String, AttributeValue> item = new HashMap<>();
-    item.put("PK", AttributeValue.builder().s("PLAYER#" + report.playerId()).build());
-    item.put("SK", AttributeValue.builder().s("REPORT#" + report.reportTimestamp()).build());
-    item.put("reportId", AttributeValue.builder().s(report.reportId()).build());
-    item.put("coachId", AttributeValue.builder().s(report.coachId()).build());
-    item.put("playerEmail", AttributeValue.builder().s(report.playerEmail()).build());
-    item.put("createdAt", AttributeValue.builder().s(Instant.now().toString()).build());
-    item.put("s3Key", AttributeValue.builder().s(s3Key).build());
-
-    Map<String, AttributeValue> categories = new HashMap<>();
-    report.categories()
-        .forEach((key, value) -> categories.put(key, AttributeValue.builder().s(value).build()));
-    item.put("categories", AttributeValue.builder().m(categories).build());
+    item.put("PK", AttributeValue.fromS("PLAYER#" + report.playerId()));
+    item.put("SK", AttributeValue.fromS("REPORT#" + report.reportTimestamp()));
+    item.put("reportId", AttributeValue.fromS(report.reportId()));
+    item.put("coachId", AttributeValue.fromS(report.coachId()));
+    item.put("playerEmail", AttributeValue.fromS(report.playerEmail()));
+    item.put("createdAt", AttributeValue.fromS(Instant.now().toString()));
+    Map<String, AttributeValue> cats = new HashMap<>();
+    report.categories().forEach((k, v) -> cats.put(k, AttributeValue.fromS(v)));
+    item.put("categories", AttributeValue.fromM(cats));
 
     PutItemRequest request =
         PutItemRequest.builder()
@@ -42,25 +39,22 @@ public class CoachReportRepository {
             .item(item)
             .conditionExpression("attribute_not_exists(SK)")
             .build();
-
     dynamoDbClient.putItem(request);
   }
 
-  public void saveAuditEntry(CoachReport report, Instant auditTimestamp) {
-    Map<String, AttributeValue> item = new HashMap<>();
-    item.put("PK", AttributeValue.builder().s("REPORT#" + report.reportId()).build());
-    item.put(
-        "SK",
-        AttributeValue.builder()
-            .s("AUDIT#" + auditTimestamp.toString() + "#SENT")
-            .build());
-    item.put("actorId", AttributeValue.builder().s(report.coachId()).build());
-    item.put("actorRole", AttributeValue.builder().s("COACH").build());
-    item.put("createdAt", AttributeValue.builder().s(auditTimestamp.toString()).build());
-
-    PutItemRequest request =
-        PutItemRequest.builder().tableName(tableName).item(item).build();
-
-    dynamoDbClient.putItem(request);
+  /** Idempotent update to set s3Key only if absent. */
+  public void updateS3Key(String playerId, Instant reportTimestamp, String s3Key) {
+    Map<String, AttributeValue> key =
+        Map.of(
+            "PK", AttributeValue.fromS("PLAYER#" + playerId),
+            "SK", AttributeValue.fromS("REPORT#" + reportTimestamp));
+    UpdateItemRequest req =
+        UpdateItemRequest.builder()
+            .tableName(tableName)
+            .key(key)
+            .updateExpression("SET s3Key = if_not_exists(s3Key, :s)")
+            .expressionAttributeValues(Map.of(":s", AttributeValue.fromS(s3Key)))
+            .build();
+    dynamoDbClient.updateItem(req);
   }
 }
