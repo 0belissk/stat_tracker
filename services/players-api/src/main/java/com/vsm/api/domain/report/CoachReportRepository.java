@@ -6,8 +6,11 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeAction;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValueUpdate;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 @Repository
 public class CoachReportRepository {
@@ -43,5 +46,33 @@ public class CoachReportRepository {
             .build();
 
     dynamoDbClient.putItem(request);
+  }
+
+  /**
+   * Updates the s3Key attribute for an existing report.
+   * Uses UpdateItem to set the s3Key, tolerating if already set.
+   *
+   * @param playerId the player ID
+   * @param reportTimestamp the report timestamp
+   * @param s3Key the S3 key to set
+   */
+  public void updateS3Key(String playerId, Instant reportTimestamp, String s3Key) {
+    Map<String, AttributeValue> key = new HashMap<>();
+    key.put("PK", AttributeValue.builder().s("PLAYER#" + playerId).build());
+    key.put("SK", AttributeValue.builder().s("REPORT#" + reportTimestamp).build());
+
+    Map<String, AttributeValueUpdate> updates = new HashMap<>();
+    updates.put("s3Key", AttributeValueUpdate.builder()
+        .value(AttributeValue.builder().s(s3Key).build())
+        .action(AttributeAction.PUT)
+        .build());
+
+    UpdateItemRequest request = UpdateItemRequest.builder()
+        .tableName(tableName)
+        .key(key)
+        .attributeUpdates(updates)
+        .build();
+
+    dynamoDbClient.updateItem(request);
   }
 }

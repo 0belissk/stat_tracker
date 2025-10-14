@@ -34,3 +34,13 @@ app:
     dynamodb-endpoint: ${DYNAMODB_ENDPOINT:}
   reports:
     table-name: ${REPORTS_TABLE_NAME:vsm-main}
+  s3:
+    reportsBucket: "Todo: S3 reports bucket name"
+    keyPrefix: "Todo: Optional prefix like 'reports/'"
+  kms:
+    keyArn: "Todo: KMS key ARN for SSE-KMS"
+  events:
+    busName: "Todo: EventBridge bus name"
+    source: "Todo: Event source string (e.g., 'com.vsm.reports')"
+    detailType:
+      reportCreated: "Todo: Event detail-type (e.g., 'report.created')"
