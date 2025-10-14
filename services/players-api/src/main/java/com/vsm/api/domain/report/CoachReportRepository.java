@@ -12,6 +12,8 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 @Repository
 public class CoachReportRepository {
 
+  static final String REPORT_SORT_KEY_NOT_EXISTS_CONDITION = "attribute_not_exists(SK)";
+
   private final DynamoDbClient dynamoDbClient;
   private final String tableName;
 
@@ -39,7 +41,7 @@ public class CoachReportRepository {
         PutItemRequest.builder()
             .tableName(tableName)
             .item(item)
-            .conditionExpression("attribute_not_exists(SK)")
+            .conditionExpression(REPORT_SORT_KEY_NOT_EXISTS_CONDITION)
             .build();
 
     dynamoDbClient.putItem(request);
