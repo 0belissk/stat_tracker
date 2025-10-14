@@ -32,5 +32,12 @@ app:
   aws:
     region: ${AWS_REGION:us-east-1}
     dynamodb-endpoint: ${DYNAMODB_ENDPOINT:}
+    s3-endpoint: ${S3_ENDPOINT:}
+    eventbridge-endpoint: ${EVENTBRIDGE_ENDPOINT:}
   reports:
     table-name: ${REPORTS_TABLE_NAME:vsm-main}
+    bucket-name: ${REPORTS_BUCKET_NAME:todo:set-report-bucket}
+    kms-key-id: ${REPORTS_KMS_KEY_ID:todo:set-kms-key-id}
+    s3-prefix: ${REPORTS_S3_PREFIX:reports}
+    event-bus-name: ${REPORTS_EVENT_BUS_NAME:default}
+    event-source: ${REPORTS_EVENT_SOURCE:players-api.reports}

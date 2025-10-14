@@ -54,6 +54,18 @@
       <artifactId>dynamodb</artifactId>
     </dependency>
 
+    <!-- S3 (report text storage) -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+    </dependency>
+
+    <!-- EventBridge (report created events) -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>eventbridge</artifactId>
+    </dependency>
+
     <!-- Security: JWT Resource Server -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
