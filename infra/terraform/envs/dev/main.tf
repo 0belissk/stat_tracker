@@ -49,6 +49,24 @@ module "iam" {
   kms_key_arn           = module.s3.kms_key_arn
 }
 
+module "notify_report_ready" {
+  source                = "../../modules/notify_report_ready"
+  name_prefix           = var.name_prefix
+  region                = var.region
+  reports_bucket_arn    = "arn:aws:s3:::${var.report_bucket_name}"
+  config_path_prefix    = var.notify_report_ready_config_path
+  sender_email          = var.notify_report_ready_sender
+  ses_identity          = var.notify_report_ready_ses_identity
+  email_subject         = var.notify_report_ready_email_subject
+  email_template        = var.notify_report_ready_email_template
+  link_expiry_seconds   = var.notify_report_ready_link_expiry_seconds
+  lambda_package_bucket = var.notify_report_ready_package_bucket
+  lambda_package_key    = var.notify_report_ready_package_key
+  event_bus_name        = var.notify_report_ready_event_bus_name
+  event_source          = var.notify_report_ready_event_source
+  event_detail_type     = var.notify_report_ready_event_detail_type
+}
+
 output "vpc_id" { value = module.vpc.vpc_id }
 output "public_subnets" { value = module.vpc.public_subnet_ids }
 output "private_subnets" { value = module.vpc.private_subnet_ids }
