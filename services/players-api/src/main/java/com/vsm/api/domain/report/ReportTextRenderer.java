@@ -8,9 +8,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * Canonical plain-text renderer for CoachReport.
- * Header lines: playerId, coachId, reportTimestamp (ISO-INSTANT), reportId then blank line.
- * Categories sorted case-insensitively: "Category: value" each line, newline terminated.
+ * Canonical plain-text renderer for CoachReport. Header lines: playerId, coachId, reportTimestamp
+ * (ISO-INSTANT), reportId then blank line. Categories sorted case-insensitively: "Category: value"
+ * each line, newline terminated.
  */
 @Component
 public class ReportTextRenderer {

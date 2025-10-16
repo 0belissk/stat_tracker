@@ -19,8 +19,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * Two modes:
  *
  * <ol>
- *   <li>Normal (auth enabled): JWT required for /api/**</li>
- *   <li>Local profile (spring.profiles.active=local): auth disabled for developer convenience</li>
+ *   <li>Normal (auth enabled): JWT required for /api/**
+ *   <li>Local profile (spring.profiles.active=local): auth disabled for developer convenience
  * </ol>
  */
 @Configuration
@@ -49,16 +49,14 @@ public class SecurityConfig {
                     .permitAll())
         .oauth2ResourceServer(
             oauth2 ->
-                oauth2.jwt(
-                    jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+                oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
     return http.build();
   }
 
   @Bean
   @Profile("local")
   SecurityFilterChain localAllOpen(HttpSecurity http) throws Exception {
-    http.csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(reg -> reg.anyRequest().permitAll());
+    http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(reg -> reg.anyRequest().permitAll());
     return http.build();
   }
 

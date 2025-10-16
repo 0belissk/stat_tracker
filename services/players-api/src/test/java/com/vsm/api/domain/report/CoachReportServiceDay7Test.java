@@ -30,7 +30,8 @@ class CoachReportServiceDay7Test {
     svc.create(report);
     verify(storage).store(eq(report), any());
     verify(repo).save(report);
-    verify(repo).updateS3Key("p1", Instant.parse("2025-01-01T00:00:00Z"), "reports/p1/2025/01/01/r1.txt");
+    verify(repo)
+        .updateS3Key("p1", Instant.parse("2025-01-01T00:00:00Z"), "reports/p1/2025/01/01/r1.txt");
     verify(events).publishReportCreated("p1", "r1", "reports/p1/2025/01/01/r1.txt");
     verify(audit).writeSent(eq("r1"), eq("c1"), any());
   }
@@ -47,13 +48,17 @@ class CoachReportServiceDay7Test {
         new CoachReport(
             "p1", "p@x", Map.of("A", "1"), Instant.parse("2025-01-01T00:00:00Z"), "r1", "c1");
     when(storage.store(eq(report), any())).thenReturn("reports/p1/2025/01/01/r1.txt");
-    doThrow(ConditionalCheckFailedException.builder().message("exists").build()).when(repo).save(report);
+    doThrow(ConditionalCheckFailedException.builder().message("exists").build())
+        .when(repo)
+        .save(report);
     try {
       svc.create(report);
-    } catch (ReportAlreadyExistsException ignored) {}
+    } catch (ReportAlreadyExistsException ignored) {
+    }
     verify(storage).store(eq(report), any());
     verify(repo).save(report);
-    verify(repo).updateS3Key("p1", Instant.parse("2025-01-01T00:00:00Z"), "reports/p1/2025/01/01/r1.txt");
+    verify(repo)
+        .updateS3Key("p1", Instant.parse("2025-01-01T00:00:00Z"), "reports/p1/2025/01/01/r1.txt");
     verify(events).publishReportCreated("p1", "r1", "reports/p1/2025/01/01/r1.txt");
     verify(audit).writeSent(eq("r1"), eq("c1"), any());
   }

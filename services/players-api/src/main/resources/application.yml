@@ -35,12 +35,12 @@ app:
   reports:
     table-name: ${REPORTS_TABLE_NAME:vsm-main}
   s3:
-    reportsBucket: ${REPORTS_BUCKET_NAME:Todo: S3 reports bucket name}
-    keyPrefix: ${REPORTS_KEY_PREFIX:Todo: Optional prefix like 'reports/'}
+    reportsBucket: "${REPORTS_BUCKET_NAME:Todo: S3 reports bucket name}"
+    keyPrefix: "${REPORTS_KEY_PREFIX:Todo: Optional prefix like 'reports/'}"
   kms:
-    keyArn: ${REPORTS_KMS_KEY_ARN:Todo: KMS key ARN for SSE-KMS}
+    keyArn: "${REPORTS_KMS_KEY_ARN:Todo: KMS key ARN for SSE-KMS}"
   events:
-    busName: ${EVENTBUS_NAME:Todo: EventBridge bus name}
-    source: ${EVENT_SOURCE:Todo: Event source string (e.g., 'com.vsm.reports')}
+    busName: "${EVENTBUS_NAME:Todo: EventBridge bus name}"
+    source: "${EVENT_SOURCE:Todo: Event source string (e.g., 'com.vsm.reports')}"
     detailType:
-      reportCreated: ${EVENT_DETAIL_TYPE_REPORT_CREATED:Todo: Event detail-type (e.g., 'report.created')}
+      reportCreated: "${EVENT_DETAIL_TYPE_REPORT_CREATED:Todo: Event detail-type (e.g., 'report.created')}"

@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
@@ -12,6 +15,7 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsResponse;
 
 @Component
+@ConditionalOnBean(EventBridgeClient.class)
 public class CoachReportEventPublisher {
 
   private final EventBridgeClient eventBridgeClient;
@@ -20,21 +24,23 @@ public class CoachReportEventPublisher {
   private final String eventBusName;
   private final String source;
 
+  @Autowired
   public CoachReportEventPublisher(
       EventBridgeClient eventBridgeClient,
       ObjectMapper objectMapper,
-      Clock clock,
-      @Value("${app.reports.event-bus-name}") String eventBusName,
+      @Nullable Clock clock,
+      @Value("${app.reports.event-bus-name:}") String eventBusName,
       @Value("${app.reports.event-source:players-api.reports}") String source) {
     this.eventBridgeClient = eventBridgeClient;
     this.objectMapper = objectMapper;
-    this.clock = clock;
+    this.clock = clock == null ? Clock.systemUTC() : clock;
     this.eventBusName = eventBusName;
     this.source = source;
   }
 
   public void publishReportCreated(CoachReport report, String s3Key) {
-    ReportCreatedDetail detail = new ReportCreatedDetail(report.playerId(), report.reportId(), s3Key);
+    ReportCreatedDetail detail =
+        new ReportCreatedDetail(report.playerId(), report.reportId(), s3Key);
     String detailJson = toJson(detail);
 
     PutEventsRequestEntry entry =

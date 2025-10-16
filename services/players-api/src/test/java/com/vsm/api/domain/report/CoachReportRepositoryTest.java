@@ -1,6 +1,7 @@
 package com.vsm.api.domain.report;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
 
@@ -12,6 +13,7 @@ import org.mockito.Mockito;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 class CoachReportRepositoryTest {
 
@@ -31,7 +33,7 @@ class CoachReportRepositoryTest {
             "2024-01-01T00:00:00Z",
             "coach-123");
 
-    repository.save(report, "reports/player-1/2024/01/01/2024-01-01T00:00:00Z.txt");
+    repository.save(report);
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -48,12 +50,11 @@ class CoachReportRepositoryTest {
     assertEquals("player@example.com", item.get("playerEmail").s());
     assertNotNull(item.get("createdAt").s());
     assertEquals("great", item.get("categories").m().get("serving").s());
-    assertEquals(
-        "reports/player-1/2024/01/01/2024-01-01T00:00:00Z.txt", item.get("s3Key").s());
+    assertFalse(item.containsKey("s3Key"));
   }
 
   @Test
-  void saveAuditEntryWritesAuditItem() {
+  void updateS3KeySetsValueIfMissing() {
     CoachReport report =
         new CoachReport(
             "player-1",
@@ -63,19 +64,17 @@ class CoachReportRepositoryTest {
             "2024-01-01T00:00:00Z",
             "coach-123");
 
-    repository.saveAuditEntry(report, Instant.parse("2024-02-02T00:00:00Z"));
+    repository.updateS3Key(
+        report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
 
-    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
-    verify(dynamoDbClient).putItem(captor.capture());
+    ArgumentCaptor<UpdateItemRequest> captor = ArgumentCaptor.forClass(UpdateItemRequest.class);
+    verify(dynamoDbClient).updateItem(captor.capture());
 
-    PutItemRequest request = captor.getValue();
+    UpdateItemRequest request = captor.getValue();
     assertEquals("coach_reports", request.tableName());
-
-    Map<String, AttributeValue> item = request.item();
-    assertEquals("REPORT#2024-01-01T00:00:00Z", item.get("PK").s());
-    assertEquals("AUDIT#2024-02-02T00:00:00Z#SENT", item.get("SK").s());
-    assertEquals("coach-123", item.get("actorId").s());
-    assertEquals("COACH", item.get("actorRole").s());
-    assertEquals("2024-02-02T00:00:00Z", item.get("createdAt").s());
+    assertEquals("PLAYER#player-1", request.key().get("PK").s());
+    assertEquals("REPORT#2024-01-01T00:00:00Z", request.key().get("SK").s());
+    assertEquals("SET s3Key = if_not_exists(s3Key, :s)", request.updateExpression());
+    assertEquals("reports/player-1/report.txt", request.expressionAttributeValues().get(":s").s());
   }
 }
