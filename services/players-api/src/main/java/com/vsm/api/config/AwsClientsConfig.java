@@ -12,8 +12,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 /**
- * AWS SDK v2 clients (S3, EventBridge). Region comes from app.aws.region.
- * Optional endpoint overrides (for local testing) left empty in normal environments.
+ * AWS SDK v2 clients (S3, EventBridge). Region comes from app.aws.region. Optional endpoint
+ * overrides (for local testing) left empty in normal environments.
  */
 @Configuration
 public class AwsClientsConfig {

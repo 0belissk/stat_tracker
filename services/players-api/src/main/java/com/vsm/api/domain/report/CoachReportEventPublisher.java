@@ -39,7 +39,8 @@ public class CoachReportEventPublisher {
   }
 
   public void publishReportCreated(CoachReport report, String s3Key) {
-    ReportCreatedDetail detail = new ReportCreatedDetail(report.playerId(), report.reportId(), s3Key);
+    ReportCreatedDetail detail =
+        new ReportCreatedDetail(report.playerId(), report.reportId(), s3Key);
     String detailJson = toJson(detail);
 
     PutEventsRequestEntry entry =

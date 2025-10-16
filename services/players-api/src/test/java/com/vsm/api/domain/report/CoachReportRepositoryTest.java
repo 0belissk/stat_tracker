@@ -75,8 +75,6 @@ class CoachReportRepositoryTest {
     assertEquals("PLAYER#player-1", request.key().get("PK").s());
     assertEquals("REPORT#2024-01-01T00:00:00Z", request.key().get("SK").s());
     assertEquals("SET s3Key = if_not_exists(s3Key, :s)", request.updateExpression());
-    assertEquals(
-        "reports/player-1/report.txt",
-        request.expressionAttributeValues().get(":s").s());
+    assertEquals("reports/player-1/report.txt", request.expressionAttributeValues().get(":s").s());
   }
 }

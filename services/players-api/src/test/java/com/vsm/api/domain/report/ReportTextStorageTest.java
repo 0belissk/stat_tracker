@@ -40,7 +40,8 @@ class ReportTextStorageTest {
 
     String key = storage.writeReportText(report);
 
-    ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    ArgumentCaptor<PutObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(PutObjectRequest.class);
     ArgumentCaptor<RequestBody> bodyCaptor = ArgumentCaptor.forClass(RequestBody.class);
     verify(s3Client).putObject(requestCaptor.capture(), bodyCaptor.capture());
 
@@ -57,8 +58,6 @@ class ReportTextStorageTest {
     }
 
     assertEquals(
-        "reports/player-123/2024/03/01/2024-03-01T10:15:30Z.txt",
-        key,
-        "returns the generated key");
+        "reports/player-123/2024/03/01/2024-03-01T10:15:30Z.txt", key, "returns the generated key");
   }
 }

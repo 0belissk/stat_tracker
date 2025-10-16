@@ -71,7 +71,8 @@ class CoachReportEventPublisherTest {
             "coach-1");
 
     assertThrows(
-        IllegalStateException.class, () -> publisher.publishReportCreated(report, "reports/key.txt"));
+        IllegalStateException.class,
+        () -> publisher.publishReportCreated(report, "reports/key.txt"));
   }
 
   @Test
@@ -94,6 +95,7 @@ class CoachReportEventPublisherTest {
             "coach-1");
 
     assertThrows(
-        IllegalStateException.class, () -> failingPublisher.publishReportCreated(report, "reports/key.txt"));
+        IllegalStateException.class,
+        () -> failingPublisher.publishReportCreated(report, "reports/key.txt"));
   }
 }

@@ -52,7 +52,10 @@ public class ReportTextStorage {
     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
 
     PutObjectRequest.Builder requestBuilder =
-        PutObjectRequest.builder().bucket(bucketName).key(key).contentType("text/plain; charset=utf-8");
+        PutObjectRequest.builder()
+            .bucket(bucketName)
+            .key(key)
+            .contentType("text/plain; charset=utf-8");
 
     if (kmsKeyId != null && !kmsKeyId.isBlank()) {
       requestBuilder.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(kmsKeyId);

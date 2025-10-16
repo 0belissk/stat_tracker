@@ -48,8 +48,10 @@ class CoachReportServiceTest {
     verify(repository).save(report);
     verify(repository)
         .updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
-    verify(eventPublisher).publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
-    verify(auditRepository).writeSent(Mockito.eq(report.reportId()), Mockito.eq(report.coachId()), any(Instant.class));
+    verify(eventPublisher)
+        .publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
+    verify(auditRepository)
+        .writeSent(Mockito.eq(report.reportId()), Mockito.eq(report.coachId()), any(Instant.class));
   }
 
   @Test
@@ -74,8 +76,11 @@ class CoachReportServiceTest {
     assertThrows(ReportAlreadyExistsException.class, () -> service.create(report));
 
     verify(storage).store(report, "Rendered report");
-    verify(repository).updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
-    verify(eventPublisher).publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
-    verify(auditRepository).writeSent(Mockito.eq(report.reportId()), Mockito.eq(report.coachId()), any(Instant.class));
+    verify(repository)
+        .updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
+    verify(eventPublisher)
+        .publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
+    verify(auditRepository)
+        .writeSent(Mockito.eq(report.reportId()), Mockito.eq(report.coachId()), any(Instant.class));
   }
 }
