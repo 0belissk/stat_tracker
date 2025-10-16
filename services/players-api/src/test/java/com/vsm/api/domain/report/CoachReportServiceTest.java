@@ -1,11 +1,14 @@
 package com.vsm.api.domain.report;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
+import com.vsm.api.infrastructure.audit.AuditRepository;
+import com.vsm.api.infrastructure.events.ReportEventPublisher;
+import com.vsm.api.infrastructure.storage.S3ReportStorage;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -15,15 +18,13 @@ import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedExce
 class CoachReportServiceTest {
 
   private final CoachReportRepository repository = Mockito.mock(CoachReportRepository.class);
-  private final ReportTextStorage textStorage = Mockito.mock(ReportTextStorage.class);
-  private final CoachReportEventPublisher eventPublisher = Mockito.mock(CoachReportEventPublisher.class);
+  private final ReportTextRenderer renderer = Mockito.mock(ReportTextRenderer.class);
+  private final S3ReportStorage storage = Mockito.mock(S3ReportStorage.class);
+  private final ReportEventPublisher eventPublisher = Mockito.mock(ReportEventPublisher.class);
+  private final AuditRepository auditRepository = Mockito.mock(AuditRepository.class);
 
   private final CoachReportService service =
-      new CoachReportService(
-          repository,
-          textStorage,
-          eventPublisher,
-          java.time.Clock.fixed(Instant.parse("2024-02-02T00:00:00Z"), java.time.ZoneOffset.UTC));
+      new CoachReportService(repository, renderer, storage, eventPublisher, auditRepository);
 
   @Test
   void createDelegatesToRepository() {
@@ -36,14 +37,19 @@ class CoachReportServiceTest {
             "2024-01-01T00:00:00Z",
             "coach-1");
 
-    Mockito.when(textStorage.writeReportText(report)).thenReturn("reports/player-1/report.txt");
+    Mockito.when(renderer.render(report)).thenReturn("Rendered report");
+    Mockito.when(storage.store(report, "Rendered report"))
+        .thenReturn("reports/player-1/report.txt");
 
     service.create(report);
 
-    verify(textStorage).writeReportText(report);
-    verify(repository).save(report, "reports/player-1/report.txt");
-    verify(eventPublisher).publishReportCreated(report, "reports/player-1/report.txt");
-    verify(repository).saveAuditEntry(report, Instant.parse("2024-02-02T00:00:00Z"));
+    verify(renderer).render(report);
+    verify(storage).store(report, "Rendered report");
+    verify(repository).save(report);
+    verify(repository)
+        .updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
+    verify(eventPublisher).publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
+    verify(auditRepository).writeSent(Mockito.eq(report.reportId()), Mockito.eq(report.coachId()), any(Instant.class));
   }
 
   @Test
@@ -57,15 +63,19 @@ class CoachReportServiceTest {
             "2024-01-01T00:00:00Z",
             "coach-1");
 
-    Mockito.when(textStorage.writeReportText(report)).thenReturn("reports/player-1/report.txt");
+    Mockito.when(renderer.render(report)).thenReturn("Rendered report");
+    Mockito.when(storage.store(report, "Rendered report"))
+        .thenReturn("reports/player-1/report.txt");
 
     doThrow(ConditionalCheckFailedException.builder().message("exists").build())
         .when(repository)
-        .save(report, "reports/player-1/report.txt");
+        .save(report);
 
     assertThrows(ReportAlreadyExistsException.class, () -> service.create(report));
 
-    verify(eventPublisher, never()).publishReportCreated(Mockito.any(), Mockito.anyString());
-    verify(repository, never()).saveAuditEntry(Mockito.any(), Mockito.any());
+    verify(storage).store(report, "Rendered report");
+    verify(repository).updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
+    verify(eventPublisher).publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
+    verify(auditRepository).writeSent(Mockito.eq(report.reportId()), Mockito.eq(report.coachId()), any(Instant.class));
   }
 }
