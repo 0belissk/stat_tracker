@@ -32,7 +32,7 @@ public class ReportTextStorage {
   public ReportTextStorage(
       S3Client s3Client,
       @Value("${app.reports.bucket-name}") String bucketName,
-      @Value("${app.reports.kms-key-id}") String kmsKeyId,
+      @Value("${app.reports.kms-key-id:}") String kmsKeyId,
       @Value("${app.reports.s3-prefix:reports}") String prefix) {
     this.s3Client = s3Client;
     this.bucketName = bucketName;
@@ -51,14 +51,14 @@ public class ReportTextStorage {
     String body = buildCanonicalBody(report.categories());
     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
 
-    PutObjectRequest request =
-        PutObjectRequest.builder()
-            .bucket(bucketName)
-            .key(key)
-            .contentType("text/plain; charset=utf-8")
-            .serverSideEncryption(ServerSideEncryption.AWS_KMS)
-            .ssekmsKeyId(kmsKeyId)
-            .build();
+    PutObjectRequest.Builder requestBuilder =
+        PutObjectRequest.builder().bucket(bucketName).key(key).contentType("text/plain; charset=utf-8");
+
+    if (kmsKeyId != null && !kmsKeyId.isBlank()) {
+      requestBuilder.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(kmsKeyId);
+    }
+
+    PutObjectRequest request = requestBuilder.build();
 
     s3Client.putObject(request, RequestBody.fromBytes(bytes));
     return key;
