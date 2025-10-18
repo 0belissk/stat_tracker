@@ -10,6 +10,12 @@ const routes: Routes = [
     canActivate: [AuthGuard],
   },
   {
+    path: 'players/:playerId/reports',
+    loadComponent: () =>
+      import('./pages/player-reports.component').then((m) => m.PlayerReportsComponent),
+    canActivate: [AuthGuard],
+  },
+  {
     path: 'auth/callback',
     loadComponent: () =>
       import('./pages/auth-callback.component').then((m) => m.AuthCallbackComponent),

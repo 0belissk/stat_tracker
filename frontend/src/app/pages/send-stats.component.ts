@@ -1,6 +1,16 @@
 import { Component } from '@angular/core';
-import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { NgFor, NgIf } from '@angular/common';
+import { finalize } from 'rxjs/operators';
+import { ReportsApiService } from '../services/reports-api.service';
+import { ReportRequestPayload, ReportResponseDto } from '../models/report';
 
 @Component({
   selector: 'app-send-stats',
@@ -52,8 +62,17 @@ import { NgFor, NgIf } from '@angular/common';
         <button type="button" (click)="addCategory()">+ Add category</button>
       </fieldset>
 
-      <button class="primary" type="submit" [disabled]="form.invalid">Preview (no send yet)</button>
+      <button class="primary" type="submit" [disabled]="form.invalid || isSubmitting">
+        {{ isSubmitting ? 'Sending…' : 'Send report' }}
+      </button>
     </form>
+
+    <p class="status success" *ngIf="status === 'sent' && lastResponse" data-cy="send-status">
+      Sent! Confirmation ID: {{ lastResponse.reportId }}
+    </p>
+    <p class="status error" *ngIf="status === 'error'" data-cy="send-error">
+      {{ errorMessage }}
+    </p>
 
     <div class="preview" *ngIf="previewText">
       <h3>Plain-text preview</h3>
@@ -99,6 +118,16 @@ import { NgFor, NgIf } from '@angular/common';
       button.primary {
         border-color: #333;
       }
+      .status {
+        margin-top: 0.5rem;
+        font-weight: 600;
+      }
+      .status.success {
+        color: #0a7d32;
+      }
+      .status.error {
+        color: #b00020;
+      }
       .preview {
         margin-top: 1.5rem;
       }
@@ -115,7 +144,15 @@ export class SendStatsComponent {
   form: FormGroup;
   previewText = '';
 
-  constructor(private fb: FormBuilder) {
+  status: 'idle' | 'sent' | 'error' = 'idle';
+  errorMessage = '';
+  isSubmitting = false;
+  lastResponse: ReportResponseDto | null = null;
+
+  constructor(
+    private fb: FormBuilder,
+    private reportsApi: ReportsApiService,
+  ) {
     this.form = this.fb.group({
       playerId: ['', Validators.required],
       playerEmail: ['', [Validators.required, Validators.email]],
@@ -123,8 +160,8 @@ export class SendStatsComponent {
     });
   }
 
-  get f() {
-    return this.form.controls as any;
+  get f(): { [key: string]: AbstractControl } {
+    return this.form.controls as { [key: string]: AbstractControl };
   }
   get categories(): FormArray<FormGroup> {
     return this.form.get('categories') as FormArray<FormGroup>;
@@ -145,17 +182,46 @@ export class SendStatsComponent {
   }
 
   onSubmit() {
-    if (this.form.invalid) return;
-    const { playerId, playerEmail } = this.form.value;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const playerId = (this.form.get('playerId')?.value ?? '').trim();
+    const playerEmail = (this.form.get('playerEmail')?.value ?? '').trim();
+    const categories: Record<string, string> = {};
+    this.categories.controls.forEach((group: FormGroup) => {
+      const name = (group.get('name')?.value ?? '').trim();
+      const value = (group.get('value')?.value ?? '').trim();
+      if (name) {
+        categories[name] = value;
+      }
+    });
+
     const lines: string[] = [
       `PlayerId: ${playerId}`,
       `PlayerEmail: ${playerEmail}`,
-      ...this.categories.controls.map((g) => {
-        const name = g.get('name')?.value ?? '';
-        const value = g.get('value')?.value ?? '';
-        return `${name}: ${value}`;
-      }),
+      ...Object.entries(categories).map(([name, value]) => `${name}: ${value}`),
     ];
     this.previewText = lines.join('\n');
+
+    const payload: ReportRequestPayload = { playerId, playerEmail, categories };
+
+    this.status = 'idle';
+    this.errorMessage = '';
+    this.isSubmitting = true;
+    this.reportsApi
+      .sendReport(payload)
+      .pipe(finalize(() => (this.isSubmitting = false)))
+      .subscribe({
+        next: (response) => {
+          this.lastResponse = response;
+          this.status = 'sent';
+        },
+        error: () => {
+          this.status = 'error';
+          this.errorMessage = 'Could not send report. Please try again.';
+        },
+      });
   }
 }

@@ -1,6 +1,7 @@
 export const environment = {
   production: false,
   apiBaseUrl: 'http://localhost:8080',
+  // TODO: Replace apiBaseUrl with the deployed API base URL once available.
   cognito: {
     region: 'us-east-1',
     userPoolId: 'us-east-1_7Example',

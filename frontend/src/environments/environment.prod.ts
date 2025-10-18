@@ -1,6 +1,7 @@
 export const environment = {
   production: true,
   apiBaseUrl: '/api',
+  // TODO: Confirm apiBaseUrl path matches the deployed gateway configuration.
   cognito: {
     region: 'us-east-1',
     userPoolId: 'us-east-1_7Example',
