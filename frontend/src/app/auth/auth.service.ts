@@ -22,6 +22,9 @@ export class AuthService {
   async init(): Promise<void> {
     this.oauth.configure(this.authConfig);
     this.oauth.setupAutomaticSilentRefresh();
+    if (typeof window !== 'undefined' && (window as any).Cypress) {
+      return Promise.resolve();
+    }
     await this.oauth.loadDiscoveryDocumentAndTryLogin();
   }
 

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.Map;
@@ -13,6 +14,8 @@ import org.mockito.Mockito;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 class CoachReportRepositoryTest {
@@ -76,5 +79,47 @@ class CoachReportRepositoryTest {
     assertEquals("REPORT#2024-01-01T00:00:00Z", request.key().get("SK").s());
     assertEquals("SET s3Key = if_not_exists(s3Key, :s)", request.updateExpression());
     assertEquals("reports/player-1/report.txt", request.expressionAttributeValues().get(":s").s());
+  }
+
+  @Test
+  void listReportsQueriesInDescendingOrderAndMapsResponse() {
+    when(dynamoDbClient.query(Mockito.any(QueryRequest.class)))
+        .thenReturn(
+            QueryResponse.builder()
+                .items(
+                    Map.of(
+                        "PK", AttributeValue.fromS("PLAYER#player-1"),
+                        "SK", AttributeValue.fromS("REPORT#2024-01-01T00:00:00Z"),
+                        "reportId", AttributeValue.fromS("2024-01-01T00:00:00Z"),
+                        "coachId", AttributeValue.fromS("coach-123"),
+                        "createdAt", AttributeValue.fromS("2024-01-01T00:05:00Z"),
+                        "s3Key", AttributeValue.fromS("reports/player-1/report.txt")))
+                .lastEvaluatedKey(
+                    Map.of(
+                        "PK", AttributeValue.fromS("PLAYER#player-1"),
+                        "SK", AttributeValue.fromS("REPORT#2024-01-02T00:00:00Z")))
+                .build());
+
+    PlayerReportPage page = repository.listReports("player-1", 10, "2024-01-03T00:00:00Z");
+
+    ArgumentCaptor<QueryRequest> captor = ArgumentCaptor.forClass(QueryRequest.class);
+    verify(dynamoDbClient).query(captor.capture());
+    QueryRequest request = captor.getValue();
+    assertEquals("coach_reports", request.tableName());
+    assertEquals("PK = :pk AND begins_with(SK, :skprefix)", request.keyConditionExpression());
+    assertEquals("PLAYER#player-1", request.expressionAttributeValues().get(":pk").s());
+    assertEquals("REPORT#", request.expressionAttributeValues().get(":skprefix").s());
+    assertFalse(request.scanIndexForward());
+    assertEquals(10, request.limit().intValue());
+    assertEquals("REPORT#2024-01-03T00:00:00Z", request.exclusiveStartKey().get("SK").s());
+
+    assertEquals(1, page.items().size());
+    PlayerReportSummary summary = page.items().get(0);
+    assertEquals("2024-01-01T00:00:00Z", summary.reportId());
+    assertEquals(Instant.parse("2024-01-01T00:00:00Z"), summary.reportTimestamp());
+    assertEquals(Instant.parse("2024-01-01T00:05:00Z"), summary.createdAt());
+    assertEquals("coach-123", summary.coachId());
+    assertEquals("reports/player-1/report.txt", summary.s3Key());
+    assertEquals("2024-01-02T00:00:00Z", page.nextCursor());
   }
 }
