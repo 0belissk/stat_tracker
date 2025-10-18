@@ -82,8 +82,7 @@ public class CoachReportRepository {
     }
 
     QueryResponse response = dynamoDbClient.query(request.build());
-    List<Map<String, AttributeValue>> rawItems =
-        response.hasItems() ? response.items() : List.of();
+    List<Map<String, AttributeValue>> rawItems = response.hasItems() ? response.items() : List.of();
     List<PlayerReportSummary> items = rawItems.stream().map(this::toSummary).toList();
 
     String nextCursor = null;

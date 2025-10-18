@@ -106,11 +106,9 @@ class CoachReportRepositoryTest {
     verify(dynamoDbClient).query(captor.capture());
     QueryRequest request = captor.getValue();
     assertEquals("coach_reports", request.tableName());
-    assertEquals(
-        "PK = :pk AND begins_with(SK, :skprefix)", request.keyConditionExpression());
+    assertEquals("PK = :pk AND begins_with(SK, :skprefix)", request.keyConditionExpression());
     assertEquals("PLAYER#player-1", request.expressionAttributeValues().get(":pk").s());
-    assertEquals(
-        "REPORT#", request.expressionAttributeValues().get(":skprefix").s());
+    assertEquals("REPORT#", request.expressionAttributeValues().get(":skprefix").s());
     assertFalse(request.scanIndexForward());
     assertEquals(10, request.limit().intValue());
     assertEquals("REPORT#2024-01-03T00:00:00Z", request.exclusiveStartKey().get("SK").s());

@@ -29,7 +29,9 @@ public class PlayerReportsController {
   }
 
   @GetMapping
-  @Operation(summary = "List reports for a player", description = "Returns reports in reverse chronological order.")
+  @Operation(
+      summary = "List reports for a player",
+      description = "Returns reports in reverse chronological order.")
   public PlayerReportListResponse listReports(
       @PathVariable("playerId") String playerId,
       @RequestParam(value = "limit", required = false) Integer limit,

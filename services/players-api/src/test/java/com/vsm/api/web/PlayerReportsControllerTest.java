@@ -33,10 +33,7 @@ class PlayerReportsControllerTest {
 
   @Test
   void listReportsRejectsInvalidLimit() throws Exception {
-    mvc.perform(
-            get("/api/players/player-1/reports")
-                .param("limit", "0")
-                .with(jwt()))
+    mvc.perform(get("/api/players/player-1/reports").param("limit", "0").with(jwt()))
         .andExpect(status().isBadRequest());
   }
 
