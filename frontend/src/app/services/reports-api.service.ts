@@ -17,7 +17,7 @@ export class ReportsApiService {
   sendReport(payload: ReportRequestPayload): Observable<ReportResponseDto> {
     const reportId = new Date().toISOString();
     const headers = new HttpHeaders({ reportId });
-    return this.http.post<ReportResponseDto>(`${this.baseUrl}/api/coach/reports`, payload, {
+    return this.http.post<ReportResponseDto>(`${this.baseUrl}/coach/reports`, payload, {
       headers,
     });
   }
@@ -34,7 +34,7 @@ export class ReportsApiService {
       params = params.set('cursor', options.cursor);
     }
     return this.http.get<PlayerReportListResponse>(
-      `${this.baseUrl}/api/players/${encodeURIComponent(playerId)}/reports`,
+      `${this.baseUrl}/players/${encodeURIComponent(playerId)}/reports`,
       { params },
     );
   }
