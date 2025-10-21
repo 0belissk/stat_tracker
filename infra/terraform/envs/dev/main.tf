@@ -7,6 +7,13 @@ terraform {
 
 provider "aws" { region = var.region }
 
+locals {
+  common_tags = {
+    Environment = var.name_prefix
+    ManagedBy   = "terraform"
+  }
+}
+
 module "vpc" {
   source               = "../../modules/vpc"
   name                 = var.name_prefix
@@ -49,6 +56,43 @@ module "iam" {
   kms_key_arn           = module.s3.kms_key_arn
 }
 
+module "ecs_service" {
+  source = "../../modules/ecs"
+
+  name_prefix        = var.name_prefix
+  region             = var.region
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  public_subnet_ids  = module.vpc.public_subnet_ids
+
+  container_image   = var.players_api_image_uri
+  container_port    = 8080
+  health_check_path = "/actuator/health"
+  desired_count     = var.players_api_desired_count
+  task_cpu          = 512
+  task_memory       = 1024
+
+  execution_role_arn = module.iam.ecs_task_execution_role_arn
+  task_role_arn      = module.iam.ecs_task_role_arn
+
+  listener_certificate_arn = var.players_api_certificate_arn
+  allowed_ingress_cidrs    = var.players_api_allowed_ingress_cidrs
+  target_5xx_alarm_actions = var.players_api_alarm_actions
+
+  tags = merge(local.common_tags, { Service = "players-api" })
+
+  app_environment = {
+    AWS_REGION                       = var.region
+    REPORTS_TABLE_NAME               = module.ddb.table_name
+    REPORTS_BUCKET_NAME              = module.s3.reports_bucket
+    REPORTS_KEY_PREFIX               = "todo: (optional S3 prefix for report objects)"
+    REPORTS_KMS_KEY_ARN              = module.s3.kms_key_arn
+    EVENTBUS_NAME                    = var.notify_report_ready_event_bus_name
+    EVENT_SOURCE                     = var.notify_report_ready_event_source
+    EVENT_DETAIL_TYPE_REPORT_CREATED = var.notify_report_ready_event_detail_type
+  }
+}
+
 module "notify_report_ready" {
   source                = "../../modules/notify_report_ready"
   name_prefix           = var.name_prefix
@@ -78,3 +122,6 @@ output "cognito_app_client_id" { value = module.cognito.app_client_id }
 output "ecr_repo" { value = module.ecr.repository_name }
 output "ecs_task_role" { value = module.iam.ecs_task_role_name }
 output "lambda_role" { value = module.iam.lambda_role_name }
+output "players_api_alb_dns" { value = module.ecs_service.alb_dns_name }
+output "players_api_dashboard" { value = module.ecs_service.dashboard_name }
+output "players_api_5xx_alarm_arn" { value = module.ecs_service.target_5xx_alarm_arn }

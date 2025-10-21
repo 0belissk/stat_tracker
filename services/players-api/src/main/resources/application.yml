@@ -20,6 +20,13 @@ management:
       probes:
         enabled: true
 
+aws:
+  xray:
+    enabled: true
+    daemon-address: "${AWS_XRAY_DAEMON_ADDRESS:127.0.0.1:2000}"
+    name: "${XRAY_SERVICE_NAME:todo: (service name as it should appear in X-Ray)}"
+    sampling-strategy: "${XRAY_SAMPLING_STRATEGY:default}"
+
 springdoc:
   api-docs:
     path: /v3/api-docs
