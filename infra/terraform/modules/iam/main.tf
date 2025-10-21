@@ -184,8 +184,3 @@ resource "aws_iam_role_policy" "lambda_extra" {
   role   = aws_iam_role.lambda.id
   policy = data.aws_iam_policy_document.lambda_extra.json
 }
-
-# Useful outputs
-output "ecs_task_execution_role_arn" { value = aws_iam_role.ecs_task_execution.arn }
-output "ecs_task_role_arn"           { value = aws_iam_role.ecs_task.arn }
-output "lambda_role_arn"             { value = aws_iam_role.lambda.arn }
