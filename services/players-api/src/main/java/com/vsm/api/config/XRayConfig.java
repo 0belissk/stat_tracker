@@ -3,10 +3,13 @@ package com.vsm.api.config;
 import com.amazonaws.xray.AWSXRay;
 import com.amazonaws.xray.AWSXRayRecorder;
 import com.amazonaws.xray.AWSXRayRecorderBuilder;
-import com.amazonaws.xray.javax.servlet.AWSXRayServletFilter;
-import com.amazonaws.xray.strategy.FixedSegmentNamingStrategy;
-import com.amazonaws.xray.strategy.SegmentNamingStrategy;
+import com.amazonaws.xray.entities.Segment;
 import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +20,7 @@ import org.springframework.core.Ordered;
 public class XRayConfig {
 
   private final String daemonAddress;
-  private final SegmentNamingStrategy segmentNamingStrategy;
+  private final String segmentName;
   private final String samplingStrategyLocation;
 
   public XRayConfig(
@@ -25,7 +28,7 @@ public class XRayConfig {
       @Value("${XRAY_SERVICE_NAME:players-api}") String segmentName,
       @Value("${XRAY_SAMPLING_STRATEGY:default}") String samplingStrategyLocation) {
     this.daemonAddress = daemonAddress;
-    this.segmentNamingStrategy = new FixedSegmentNamingStrategy(segmentName);
+    this.segmentName = segmentName;
     this.samplingStrategyLocation = samplingStrategyLocation;
   }
 
@@ -43,10 +46,34 @@ public class XRayConfig {
 
   @Bean
   public FilterRegistrationBean<Filter> awsXRayFilter(AWSXRayRecorder recorder) {
-    AWSXRayServletFilter filter = new AWSXRayServletFilter(segmentNamingStrategy, recorder);
     FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
-    registration.setFilter(filter);
+    registration.setFilter(new XRayTracingFilter(recorder, segmentName));
     registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
     return registration;
+  }
+
+  private static final class XRayTracingFilter implements Filter {
+
+    private final AWSXRayRecorder recorder;
+    private final String segmentName;
+
+    private XRayTracingFilter(AWSXRayRecorder recorder, String segmentName) {
+      this.recorder = recorder;
+      this.segmentName = segmentName;
+    }
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+        throws IOException, ServletException {
+      Segment segment = null;
+      try {
+        segment = recorder.beginSegment(segmentName);
+        chain.doFilter(request, response);
+      } finally {
+        if (segment != null) {
+          recorder.endSegment();
+        }
+      }
+    }
   }
 }
