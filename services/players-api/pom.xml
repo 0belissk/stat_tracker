@@ -17,7 +17,7 @@
     <springdoc.version>2.6.0</springdoc.version>
     <aws.sdk.version>2.25.54</aws.sdk.version>
     <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
-    <aws-xray.version>2.15.2</aws-xray.version>
+    <aws-xray.version>2.15.1</aws-xray.version>
   </properties>
 
   <dependencyManagement>
