@@ -73,8 +73,7 @@ public class CoachReportsController {
           "Creates a short-lived PUT URL scoped to the authenticated coach."
               + " The uploaded CSV will trigger downstream validation.")
   public ResponseEntity<ReportUploadUrlResponse> createUploadUrl(
-      @AuthenticationPrincipal Jwt jwt,
-      @Valid @RequestBody ReportUploadUrlRequest request) {
+      @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ReportUploadUrlRequest request) {
     RawReportUploadPresigner.PresignedUpload presigned;
     try {
       presigned =

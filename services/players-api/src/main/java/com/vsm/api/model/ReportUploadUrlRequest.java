@@ -7,9 +7,7 @@ import jakarta.validation.constraints.Positive;
 public class ReportUploadUrlRequest {
 
   @NotBlank
-  @Pattern(
-      regexp = "(?i).*\\.csv$",
-      message = "fileName must be a CSV file ending with .csv")
+  @Pattern(regexp = "(?i).*\\.csv$", message = "fileName must be a CSV file ending with .csv")
   private String fileName;
 
   private String contentType;

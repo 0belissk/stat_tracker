@@ -21,7 +21,11 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 public class RawReportUploadPresigner {
 
   public record PresignedUpload(
-      String uploadId, String objectKey, String uploadUrl, Instant expiresAt, Map<String, String> headers) {}
+      String uploadId,
+      String objectKey,
+      String uploadUrl,
+      Instant expiresAt,
+      Map<String, String> headers) {}
 
   private static final String DEFAULT_CONTENT_TYPE = "text/csv";
 

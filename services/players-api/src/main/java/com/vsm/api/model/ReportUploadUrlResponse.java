@@ -12,7 +12,11 @@ public class ReportUploadUrlResponse {
   private final Map<String, String> headers;
 
   public ReportUploadUrlResponse(
-      String uploadId, String objectKey, String uploadUrl, Instant expiresAt, Map<String, String> headers) {
+      String uploadId,
+      String objectKey,
+      String uploadUrl,
+      Instant expiresAt,
+      Map<String, String> headers) {
     this.uploadId = uploadId;
     this.objectKey = objectKey;
     this.uploadUrl = uploadUrl;

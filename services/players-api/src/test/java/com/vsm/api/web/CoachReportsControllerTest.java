@@ -153,7 +153,6 @@ class CoachReportsControllerTest {
         .andExpect(jsonPath("$.uploadUrl").value("https://example.com/upload"))
         .andExpect(jsonPath("$.headers.Content-Type").value("text/csv"));
 
-    verify(uploadPresigner)
-        .createUpload("coach-123", "batch.csv", "text/csv", null);
+    verify(uploadPresigner).createUpload("coach-123", "batch.csv", "text/csv", null);
   }
 }
