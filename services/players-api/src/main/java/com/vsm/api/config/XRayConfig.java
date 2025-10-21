@@ -6,7 +6,7 @@ import com.amazonaws.xray.AWSXRayRecorderBuilder;
 import com.amazonaws.xray.javax.servlet.AWSXRayServletFilter;
 import com.amazonaws.xray.strategy.FixedSegmentNamingStrategy;
 import com.amazonaws.xray.strategy.SegmentNamingStrategy;
-import javax.servlet.Filter;
+import jakarta.servlet.Filter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
