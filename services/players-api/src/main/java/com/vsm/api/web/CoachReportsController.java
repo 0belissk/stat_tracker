@@ -3,8 +3,11 @@ package com.vsm.api.web;
 import com.vsm.api.domain.report.CoachReport;
 import com.vsm.api.domain.report.CoachReportService;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
+import com.vsm.api.infrastructure.storage.RawReportUploadPresigner;
 import com.vsm.api.model.ReportRequest;
 import com.vsm.api.model.ReportResponse;
+import com.vsm.api.model.ReportUploadUrlRequest;
+import com.vsm.api.model.ReportUploadUrlResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,9 +30,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class CoachReportsController {
 
   private final CoachReportService coachReportService;
+  private final RawReportUploadPresigner uploadPresigner;
 
-  public CoachReportsController(CoachReportService coachReportService) {
+  public CoachReportsController(
+      CoachReportService coachReportService, RawReportUploadPresigner uploadPresigner) {
     this.coachReportService = coachReportService;
+    this.uploadPresigner = uploadPresigner;
   }
 
   @PostMapping
@@ -58,6 +64,37 @@ public class CoachReportsController {
 
     return ResponseEntity.accepted()
         .body(new ReportResponse(report.reportId(), "QUEUED", Instant.now()));
+  }
+
+  @PostMapping("/upload-url")
+  @Operation(
+      summary = "Generate a presigned S3 URL for uploading coach report CSVs",
+      description =
+          "Creates a short-lived PUT URL scoped to the authenticated coach."
+              + " The uploaded CSV will trigger downstream validation.")
+  public ResponseEntity<ReportUploadUrlResponse> createUploadUrl(
+      @AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody ReportUploadUrlRequest request) {
+    RawReportUploadPresigner.PresignedUpload presigned;
+    try {
+      presigned =
+          uploadPresigner.createUpload(
+              resolveCoachId(jwt),
+              request.getFileName(),
+              request.getContentType(),
+              request.getContentLength());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+    }
+
+    ReportUploadUrlResponse response =
+        new ReportUploadUrlResponse(
+            presigned.uploadId(),
+            presigned.objectKey(),
+            presigned.uploadUrl().toString(),
+            presigned.expiresAt(),
+            presigned.headers());
+    return ResponseEntity.ok(response);
   }
 
   private Instant parseReportTimestamp(String header) {

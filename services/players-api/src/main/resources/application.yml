@@ -37,6 +37,9 @@ app:
   s3:
     reportsBucket: "${REPORTS_BUCKET_NAME:Todo: S3 reports bucket name}"
     keyPrefix: "${REPORTS_KEY_PREFIX:Todo: Optional prefix like 'reports/'}"
+    rawUploadsBucket: "${RAW_UPLOADS_BUCKET_NAME:Todo: Raw uploads bucket name}"
+    rawUploadsPrefix: "${RAW_UPLOADS_KEY_PREFIX:uploads/}"
+    rawUploadExpirySeconds: ${RAW_UPLOADS_EXPIRY_SECONDS:900}
   kms:
     keyArn: "${REPORTS_KMS_KEY_ARN:Todo: KMS key ARN for SSE-KMS}"
   events:

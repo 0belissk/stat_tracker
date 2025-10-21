@@ -3,6 +3,7 @@ package com.vsm.api.web;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,7 +13,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vsm.api.config.SecurityConfig;
 import com.vsm.api.domain.report.CoachReportService;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
+import com.vsm.api.infrastructure.storage.RawReportUploadPresigner;
 import com.vsm.api.model.ReportRequest;
+import com.vsm.api.model.ReportUploadUrlRequest;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,8 @@ class CoachReportsControllerTest {
   @Autowired private ObjectMapper mapper;
 
   @MockBean private CoachReportService coachReportService;
+
+  @MockBean private RawReportUploadPresigner uploadPresigner;
 
   @MockBean private JwtDecoder jwtDecoder;
 
@@ -114,5 +119,41 @@ class CoachReportsControllerTest {
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_COACH"))))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.reportId").value(timestamp));
+  }
+
+  @Test
+  void createUploadUrl_returnsPresignedResponse() throws Exception {
+    ReportUploadUrlRequest request = new ReportUploadUrlRequest();
+    request.setFileName("batch.csv");
+    request.setContentType("text/csv");
+
+    Instant expiresAt = Instant.parse("2024-03-20T10:15:30Z");
+
+    RawReportUploadPresigner.PresignedUpload presigned =
+        new RawReportUploadPresigner.PresignedUpload(
+            "upload-123",
+            "uploads/coach-123/upload-123/batch.csv",
+            "https://example.com/upload",
+            expiresAt,
+            Map.of("Content-Type", "text/csv"));
+
+    when(uploadPresigner.createUpload(any(), any(), any(), any())).thenReturn(presigned);
+
+    mvc.perform(
+            post("/api/coach/reports/upload-url")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(request))
+                .with(
+                    jwt()
+                        .jwt(jwt -> jwt.subject("coach-123"))
+                        .authorities(new SimpleGrantedAuthority("ROLE_COACH"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.uploadId").value("upload-123"))
+        .andExpect(jsonPath("$.objectKey").value("uploads/coach-123/upload-123/batch.csv"))
+        .andExpect(jsonPath("$.uploadUrl").value("https://example.com/upload"))
+        .andExpect(jsonPath("$.headers.Content-Type").value("text/csv"));
+
+    verify(uploadPresigner)
+        .createUpload("coach-123", "batch.csv", "text/csv", null);
   }
 }
