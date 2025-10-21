@@ -2,5 +2,32 @@
   "name": "csv-validate",
   "version": "0.0.0",
   "private": true,
-  "description": "Placeholder package configuration for the CSV validate lambda"
+  "description": "Validates uploaded CSV batches for coach reports",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.433.0",
+    "aws-lambda": "^1.0.7",
+    "csv-parse": "^5.5.6",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@tsconfig/node16": "^1.0.3",
+    "@types/aws-lambda": "^8.10.119",
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.12.7",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "clearMocks": true,
+    "roots": [
+      "<rootDir>/src"
+    ]
+  }
 }

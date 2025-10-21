@@ -10,6 +10,7 @@ import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /**
  * AWS SDK v2 clients (S3, EventBridge). Region comes from app.aws.region. Optional endpoint
@@ -24,6 +25,20 @@ public class AwsClientsConfig {
       @Value("${app.aws.s3-endpoint:}") String s3Endpoint) {
     S3ClientBuilder builder =
         S3Client.builder()
+            .region(Region.of(region))
+            .credentialsProvider(DefaultCredentialsProvider.create());
+    if (s3Endpoint != null && !s3Endpoint.isBlank()) {
+      builder.endpointOverride(URI.create(s3Endpoint));
+    }
+    return builder.build();
+  }
+
+  @Bean
+  S3Presigner s3Presigner(
+      @Value("${app.aws.region}") String region,
+      @Value("${app.aws.s3-endpoint:}") String s3Endpoint) {
+    S3Presigner.Builder builder =
+        S3Presigner.builder()
             .region(Region.of(region))
             .credentialsProvider(DefaultCredentialsProvider.create());
     if (s3Endpoint != null && !s3Endpoint.isBlank()) {
