@@ -32,7 +32,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
 ############################
 # ECS task role (app perms)
 ############################
-data "aws_iam_policy_document" "ecs_task" {
+data "aws_iam_policy_document" "ecs_task_base" {
   statement {
     sid     = "DynamoDbAccess"
     effect  = "Allow"
@@ -83,12 +83,11 @@ data "aws_iam_policy_document" "ecs_task" {
     resources = ["*"]
   }
 
-  statement {
-    sid     = "XRay"
-    effect  = "Allow"
-    actions = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
-    resources = ["*"]
-  }
+}
+
+data "aws_iam_policy_document" "ecs_task" {
+  source_json = data.aws_iam_policy_document.ecs_task_base.json
+  override_policy_documents = [file("${path.module}/xray-policy.json")]
 }
 
 resource "aws_iam_role" "ecs_task" {
@@ -185,8 +184,3 @@ resource "aws_iam_role_policy" "lambda_extra" {
   role   = aws_iam_role.lambda.id
   policy = data.aws_iam_policy_document.lambda_extra.json
 }
-
-# Useful outputs
-output "ecs_task_execution_role_arn" { value = aws_iam_role.ecs_task_execution.arn }
-output "ecs_task_role_arn"           { value = aws_iam_role.ecs_task.arn }
-output "lambda_role_arn"             { value = aws_iam_role.lambda.arn }

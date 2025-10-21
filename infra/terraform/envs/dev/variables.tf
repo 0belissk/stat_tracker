@@ -11,8 +11,8 @@ variable "notify_report_ready_config_path" {
 }
 
 variable "notify_report_ready_sender" {
-  description = "TODO: replace with a verified SES sender email address"
-  default     = "todo"
+  description = "todo: (verified SES sender email address for notify-report-ready emails)"
+  default     = "todo: (verified SES sender email address)"
 }
 
 variable "notify_report_ready_ses_identity" {
@@ -40,13 +40,13 @@ variable "notify_report_ready_link_expiry_seconds" {
 }
 
 variable "notify_report_ready_package_bucket" {
-  description = "TODO: S3 bucket where the notify-report-ready deployment package is uploaded"
-  default     = "todo"
+  description = "todo: (S3 bucket name that stores the notify-report-ready deployment package)"
+  default     = "todo: (S3 bucket name for notify-report-ready package)"
 }
 
 variable "notify_report_ready_package_key" {
-  description = "TODO: S3 key for the notify-report-ready deployment artifact"
-  default     = "todo"
+  description = "todo: (S3 object key for the notify-report-ready deployment artifact)"
+  default     = "todo: (S3 object key for notify-report-ready package)"
 }
 
 variable "notify_report_ready_event_bus_name" {
@@ -59,4 +59,30 @@ variable "notify_report_ready_event_source" {
 
 variable "notify_report_ready_event_detail_type" {
   default = "report.created"
+}
+
+variable "players_api_image_uri" {
+  description = "todo: (ECR image URI with tag for the players-api service, e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/players-api:main)"
+  default     = "todo: (ECR image URI with tag for the players-api service)"
+}
+
+variable "players_api_desired_count" {
+  default = 1
+}
+
+variable "players_api_certificate_arn" {
+  description = "todo: (ACM certificate ARN for the public HTTPS listener)"
+  default     = null
+}
+
+variable "players_api_allowed_ingress_cidrs" {
+  description = "CIDRs allowed to access the ALB"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "players_api_alarm_actions" {
+  description = "todo: (ARNs for alarm notifications, e.g., SNS topic)"
+  type        = list(string)
+  default     = []
 }
