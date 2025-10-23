@@ -60,7 +60,15 @@ describe('persist-batch handler', () => {
     const result = await handler(
       event([
         baseReport(),
-        baseReport({ reportId: 'report-2', reportTimestamp: '2024-05-20T12:34:56Z' }),
+        baseReport({
+          reportId: 'report-2',
+          reportTimestamp: '2024-05-20T12:34:56Z',
+          playerId: 'player-2',
+          coachId: 'coach-2',
+          teamId: 'team-2',
+          playerEmail: 'player2@example.com',
+          playerName: 'Jamie',
+        }),
       ]),
     );
 
@@ -166,5 +174,30 @@ describe('persist-batch handler', () => {
       skipped: 0,
     });
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('splits transactions when multiple reports for the same player are provided', async () => {
+    mockSend.mockResolvedValue({});
+
+    const result = await handler(
+      event([
+        baseReport(),
+        baseReport({ reportId: 'report-2', reportTimestamp: '2024-05-20T12:34:56Z' }),
+      ]),
+    );
+
+    expect(result).toEqual({
+      tableName: 'reports-table',
+      total: 2,
+      processed: 2,
+      skipped: 0,
+    });
+
+    expect(mockSend).toHaveBeenCalledTimes(2);
+    const firstCommand = mockSend.mock.calls[0][0] as { input: TransactWriteCommandInput };
+    const secondCommand = mockSend.mock.calls[1][0] as { input: TransactWriteCommandInput };
+
+    expect(firstCommand.input.TransactItems).toHaveLength(2);
+    expect(secondCommand.input.TransactItems).toHaveLength(2);
   });
 });

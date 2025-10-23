@@ -335,7 +335,30 @@ const isConditionalFailure = (error: unknown): boolean => {
   return false;
 };
 
-const executeTransaction = async (
+const groupRecordsByUniquePlayer = (
+  records: NormalizedReportRecord[],
+): NormalizedReportRecord[][] => {
+  const groups: NormalizedReportRecord[][] = [];
+
+  for (const record of records) {
+    let placed = false;
+    for (const group of groups) {
+      if (!group.some((existing) => existing.playerId === record.playerId) && group.length < MAX_RECORDS_PER_TRANSACTION) {
+        group.push(record);
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      groups.push([record]);
+    }
+  }
+
+  return groups;
+};
+
+const executeTransactionBatch = async (
   records: NormalizedReportRecord[],
   tableName: string,
 ): Promise<void> => {
@@ -345,6 +368,16 @@ const executeTransaction = async (
   });
 
   await dynamoDb.send(command);
+};
+
+const executeTransactions = async (
+  records: NormalizedReportRecord[],
+  tableName: string,
+): Promise<void> => {
+  const groups = groupRecordsByUniquePlayer(records);
+  for (const group of groups) {
+    await executeTransactionBatch(group, tableName);
+  }
 };
 
 export const handler = async (event: PersistBatchEvent): Promise<PersistBatchResult> => {
@@ -363,7 +396,7 @@ export const handler = async (event: PersistBatchEvent): Promise<PersistBatchRes
 
   for (const chunk of chunks) {
     try {
-      await executeTransaction(chunk, tableName);
+      await executeTransactions(chunk, tableName);
       processed += chunk.length;
       continue;
     } catch (error) {
@@ -383,7 +416,7 @@ export const handler = async (event: PersistBatchEvent): Promise<PersistBatchRes
 
       for (const record of chunk) {
         try {
-          await executeTransaction([record], tableName);
+          await executeTransactions([record], tableName);
           processed += 1;
         } catch (innerError) {
           if (isConditionalFailure(innerError)) {
@@ -422,4 +455,5 @@ export const __internal = {
   buildTransactItems,
   isConditionalFailure,
   toSortKeyTimestamp,
+  groupRecordsByUniquePlayer,
 };
