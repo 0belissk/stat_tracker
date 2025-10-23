@@ -30,11 +30,11 @@ locals {
     StartAt = "Validate"
     States = {
       Validate = {
-        Type       = "Task"
-        Resource   = "arn:aws:states:::lambda:invoke"
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = var.validate_lambda_arn
-          Payload.$    = "$"
+          "FunctionName" = var.validate_lambda_arn
+          "Payload.$"    = "$"
         }
         ResultPath = "$.validate"
         Retry      = local.retry_config
@@ -43,11 +43,11 @@ locals {
       }
 
       Transform = {
-        Type       = "Task"
-        Resource   = "arn:aws:states:::lambda:invoke"
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = var.transform_lambda_arn
-          Payload.$    = "$.validate.Payload"
+          "FunctionName" = var.transform_lambda_arn
+          "Payload.$"    = "$.validate.Payload"
         }
         ResultPath = "$.transform"
         Retry      = local.retry_config
@@ -56,11 +56,11 @@ locals {
       }
 
       Persist = {
-        Type       = "Task"
-        Resource   = "arn:aws:states:::lambda:invoke"
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = var.persist_lambda_arn
-          Payload.$    = "$.transform.Payload"
+          "FunctionName" = var.persist_lambda_arn
+          "Payload.$"    = "$.transform.Payload"
         }
         ResultPath = "$.persist"
         Retry      = local.retry_config
@@ -77,7 +77,7 @@ locals {
               DetailType   = var.event_detail_type
               Source       = var.event_source
               EventBusName = data.aws_event_bus.target.name
-              Detail.$     = "States.JsonToString($.persist.Payload)"
+              "Detail.$"   = "States.JsonToString($.persist.Payload)"
             }
           ]
         }
@@ -90,8 +90,8 @@ locals {
         Type     = "Task"
         Resource = "arn:aws:states:::sqs:sendMessage"
         Parameters = {
-          QueueUrl      = aws_sqs_queue.dlq.id
-          MessageBody.$ = "States.JsonToString($)"
+          QueueUrl        = aws_sqs_queue.dlq.id
+          "MessageBody.$" = "States.JsonToString($)"
         }
         End = true
       }
@@ -149,6 +149,29 @@ data "aws_iam_policy_document" "state_machine" {
     effect    = "Allow"
     actions   = ["sqs:SendMessage"]
     resources = [aws_sqs_queue.dlq.arn]
+  }
+
+  statement {
+    sid    = "CloudWatchLogsDelivery"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogDelivery",
+      "logs:GetLogDelivery",
+      "logs:UpdateLogDelivery",
+      "logs:DeleteLogDelivery",
+      "logs:ListLogDeliveries",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "XRayTracing"
+    effect    = "Allow"
+    actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+    resources = ["*"]
   }
 }
 
