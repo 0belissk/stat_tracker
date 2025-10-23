@@ -48,7 +48,7 @@ public class CoachReportService {
 
     // c) Attach s3Key (if_not_exists semantics)
     try {
-      repository.updateS3Key(report.playerId(), report.reportTimestamp(), s3Key);
+      repository.updateS3Key(report.playerId(), report.reportTimestamp(), report.reportId(), s3Key);
     } catch (RuntimeException ignore) {
       // tolerate transient failures; can be healed later
     }

@@ -43,12 +43,17 @@ class CoachReportRepositoryTest {
 
     PutItemRequest request = captor.getValue();
     assertEquals("coach_reports", request.tableName());
-    assertEquals("attribute_not_exists(SK)", request.conditionExpression());
+    assertEquals(
+        "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+        request.conditionExpression());
 
     Map<String, AttributeValue> item = request.item();
     assertEquals("PLAYER#player-1", item.get("PK").s());
-    assertEquals("REPORT#2024-01-01T00:00:00Z", item.get("SK").s());
+    assertEquals("REPORT#20240101T000000#2024-01-01T00:00:00Z", item.get("SK").s());
     assertEquals("2024-01-01T00:00:00Z", item.get("reportId").s());
+    assertEquals("player-1", item.get("playerId").s());
+    assertEquals("2024-01-01T00:00:00Z", item.get("reportTimestamp").s());
+    assertEquals("20240101T000000", item.get("reportTimestampKey").s());
     assertEquals("coach-123", item.get("coachId").s());
     assertEquals("player@example.com", item.get("playerEmail").s());
     assertNotNull(item.get("createdAt").s());
@@ -68,7 +73,7 @@ class CoachReportRepositoryTest {
             "coach-123");
 
     repository.updateS3Key(
-        report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
+        report.playerId(), report.reportTimestamp(), report.reportId(), "reports/player-1/report.txt");
 
     ArgumentCaptor<UpdateItemRequest> captor = ArgumentCaptor.forClass(UpdateItemRequest.class);
     verify(dynamoDbClient).updateItem(captor.capture());
@@ -76,7 +81,8 @@ class CoachReportRepositoryTest {
     UpdateItemRequest request = captor.getValue();
     assertEquals("coach_reports", request.tableName());
     assertEquals("PLAYER#player-1", request.key().get("PK").s());
-    assertEquals("REPORT#2024-01-01T00:00:00Z", request.key().get("SK").s());
+    assertEquals(
+        "REPORT#20240101T000000#2024-01-01T00:00:00Z", request.key().get("SK").s());
     assertEquals("SET s3Key = if_not_exists(s3Key, :s)", request.updateExpression());
     assertEquals("reports/player-1/report.txt", request.expressionAttributeValues().get(":s").s());
   }
@@ -89,15 +95,19 @@ class CoachReportRepositoryTest {
                 .items(
                     Map.of(
                         "PK", AttributeValue.fromS("PLAYER#player-1"),
-                        "SK", AttributeValue.fromS("REPORT#2024-01-01T00:00:00Z"),
+                        "SK",
+                        AttributeValue.fromS("REPORT#20240101T000000#2024-01-01T00:00:00Z"),
                         "reportId", AttributeValue.fromS("2024-01-01T00:00:00Z"),
+                        "reportTimestamp", AttributeValue.fromS("2024-01-01T00:00:00Z"),
+                        "reportTimestampKey", AttributeValue.fromS("20240101T000000"),
                         "coachId", AttributeValue.fromS("coach-123"),
                         "createdAt", AttributeValue.fromS("2024-01-01T00:05:00Z"),
                         "s3Key", AttributeValue.fromS("reports/player-1/report.txt")))
                 .lastEvaluatedKey(
                     Map.of(
                         "PK", AttributeValue.fromS("PLAYER#player-1"),
-                        "SK", AttributeValue.fromS("REPORT#2024-01-02T00:00:00Z")))
+                        "SK",
+                        AttributeValue.fromS("REPORT#20240101T000000#2024-01-01T00:00:00Z")))
                 .build());
 
     PlayerReportPage page = repository.listReports("player-1", 10, "2024-01-03T00:00:00Z");
@@ -111,7 +121,9 @@ class CoachReportRepositoryTest {
     assertEquals("REPORT#", request.expressionAttributeValues().get(":skprefix").s());
     assertFalse(request.scanIndexForward());
     assertEquals(10, request.limit().intValue());
-    assertEquals("REPORT#2024-01-03T00:00:00Z", request.exclusiveStartKey().get("SK").s());
+    assertEquals(
+        "REPORT#20240103T000000#2024-01-03T00:00:00Z",
+        request.exclusiveStartKey().get("SK").s());
 
     assertEquals(1, page.items().size());
     PlayerReportSummary summary = page.items().get(0);
@@ -120,6 +132,6 @@ class CoachReportRepositoryTest {
     assertEquals(Instant.parse("2024-01-01T00:05:00Z"), summary.createdAt());
     assertEquals("coach-123", summary.coachId());
     assertEquals("reports/player-1/report.txt", summary.s3Key());
-    assertEquals("2024-01-02T00:00:00Z", page.nextCursor());
+    assertEquals("2024-01-01T00:00:00Z#2024-01-01T00:00:00Z", page.nextCursor());
   }
 }
