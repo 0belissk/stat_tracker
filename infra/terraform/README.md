@@ -1,6 +1,6 @@
-# Terraform Infra — Day 10
+# Terraform Infra — Day 12
 
-This iteration extends the secure-by-default scaffolding with an operable ECS deployment:
+This iteration extends the secure-by-default scaffolding with an operable ECS deployment and orchestrated CSV ingestion:
 
 - **VPC**: 2 public + 2 private subnets, IGW, 1 NAT, routes
 - **S3**: raw + reports buckets, **KMS SSE**, **versioning**, **TLS-only policy**, **public access blocked**
@@ -9,6 +9,7 @@ This iteration extends the secure-by-default scaffolding with an operable ECS de
 - **ECR**: repository for players-api (scan on push)
 - **IAM**: ECS task exec/task roles, Lambda role with least-privilege placeholders
 - **ECS Fargate**: containerised `players-api` behind an Application Load Balancer, CloudWatch Logs (JSON), dashboard (p95 latency & 5xx), alarm on target 5xx, and AWS X-Ray sidecar
+- **Step Functions**: CSV pipeline (`validate → transform → persist → notify`) with retries (exponential backoff + jitter), traces + error logs, EventBridge notification (`csv.validated`), and an SQS dead-letter queue catch-all
 
 ## Push the container image
 
@@ -23,6 +24,8 @@ This iteration extends the secure-by-default scaffolding with an operable ECS de
 - `players_api_alarm_actions` — provide ARNs such as `todo: (SNS topic ARN for 5xx alarm notifications)`.
 - `players_api_desired_count` — scale out task count.
 - `players_api` app environment overrides inside the module call — replace `REPORTS_KEY_PREFIX` with `todo: (S3 prefix for report objects)` or remove if unused.
+- `csv_validate_lambda_arn`, `csv_transform_lambda_arn`, `csv_persist_lambda_arn` — supply the Lambda ARNs wired into the Step Functions pipeline (for example, deployments of `lambdas/csv-validate`, `lambdas/stats-quality-check`, and `lambdas/persist-batch`).
+- Adjust `csv_pipeline_event_source` / `csv_validated_event_detail_type` if you need to emit different EventBridge metadata (defaults to `stat.tracker.csv` / `csv.validated`).
 
 ## CloudWatch + X-Ray
 
