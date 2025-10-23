@@ -111,6 +111,19 @@ module "notify_report_ready" {
   event_detail_type     = var.notify_report_ready_event_detail_type
 }
 
+module "csv_pipeline" {
+  source = "../../modules/stepfunctions"
+
+  name_prefix          = var.name_prefix
+  validate_lambda_arn  = var.csv_validate_lambda_arn
+  transform_lambda_arn = var.csv_transform_lambda_arn
+  persist_lambda_arn   = var.csv_persist_lambda_arn
+  event_bus_name       = var.notify_report_ready_event_bus_name
+  event_source         = var.csv_pipeline_event_source
+  event_detail_type    = var.csv_validated_event_detail_type
+  tags                 = local.common_tags
+}
+
 output "vpc_id" { value = module.vpc.vpc_id }
 output "public_subnets" { value = module.vpc.public_subnet_ids }
 output "private_subnets" { value = module.vpc.private_subnet_ids }
@@ -125,3 +138,5 @@ output "lambda_role" { value = module.iam.lambda_role_name }
 output "players_api_alb_dns" { value = module.ecs_service.alb_dns_name }
 output "players_api_dashboard" { value = module.ecs_service.dashboard_name }
 output "players_api_5xx_alarm_arn" { value = module.ecs_service.target_5xx_alarm_arn }
+output "csv_pipeline_state_machine_arn" { value = module.csv_pipeline.state_machine_arn }
+output "csv_pipeline_dlq_url" { value = module.csv_pipeline.dlq_url }

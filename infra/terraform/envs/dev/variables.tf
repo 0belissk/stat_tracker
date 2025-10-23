@@ -86,3 +86,26 @@ variable "players_api_alarm_actions" {
   type        = list(string)
   default     = []
 }
+
+variable "csv_validate_lambda_arn" {
+  description = "todo: (Lambda ARN for the csv-validate function used by the Step Functions pipeline)"
+  default     = "todo: (Lambda ARN for csv-validate)"
+}
+
+variable "csv_transform_lambda_arn" {
+  description = "todo: (Lambda ARN for the transform step invoked by the Step Functions pipeline)"
+  default     = "todo: (Lambda ARN for transform step)"
+}
+
+variable "csv_persist_lambda_arn" {
+  description = "todo: (Lambda ARN for the persist step invoked by the Step Functions pipeline)"
+  default     = "todo: (Lambda ARN for persist step)"
+}
+
+variable "csv_pipeline_event_source" {
+  default = "stat.tracker.csv"
+}
+
+variable "csv_validated_event_detail_type" {
+  default = "csv.validated"
+}
