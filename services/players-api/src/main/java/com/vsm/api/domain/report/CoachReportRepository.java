@@ -68,7 +68,8 @@ public class CoachReportRepository {
   public void updateS3Key(String playerId, Instant reportTimestamp, String reportId, String s3Key) {
     Map<String, AttributeValue> key =
         Map.of(
-            "PK", AttributeValue.fromS("PLAYER#" + playerId),
+            "PK",
+            AttributeValue.fromS("PLAYER#" + playerId),
             "SK",
             AttributeValue.fromS(buildReportSortKey(reportTimestamp, reportId)));
     UpdateItemRequest req =

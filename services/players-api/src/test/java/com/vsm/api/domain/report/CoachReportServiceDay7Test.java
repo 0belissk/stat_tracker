@@ -32,10 +32,7 @@ class CoachReportServiceDay7Test {
     verify(repo).save(report);
     verify(repo)
         .updateS3Key(
-            "p1",
-            Instant.parse("2025-01-01T00:00:00Z"),
-            "r1",
-            "reports/p1/2025/01/01/r1.txt");
+            "p1", Instant.parse("2025-01-01T00:00:00Z"), "r1", "reports/p1/2025/01/01/r1.txt");
     verify(events).publishReportCreated("p1", "r1", "reports/p1/2025/01/01/r1.txt");
     verify(audit).writeSent(eq("r1"), eq("c1"), any());
   }
@@ -63,10 +60,7 @@ class CoachReportServiceDay7Test {
     verify(repo).save(report);
     verify(repo)
         .updateS3Key(
-            "p1",
-            Instant.parse("2025-01-01T00:00:00Z"),
-            "r1",
-            "reports/p1/2025/01/01/r1.txt");
+            "p1", Instant.parse("2025-01-01T00:00:00Z"), "r1", "reports/p1/2025/01/01/r1.txt");
     verify(events).publishReportCreated("p1", "r1", "reports/p1/2025/01/01/r1.txt");
     verify(audit).writeSent(eq("r1"), eq("c1"), any());
   }
