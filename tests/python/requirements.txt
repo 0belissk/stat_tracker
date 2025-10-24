@@ -1,0 +1,3 @@
+pytest>=7.4,<8.0
+boto3>=1.34,<2.0
+testcontainers[localstack]>=3.7,<4.0

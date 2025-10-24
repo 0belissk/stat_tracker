@@ -114,14 +114,15 @@ module "notify_report_ready" {
 module "csv_pipeline" {
   source = "../../modules/stepfunctions"
 
-  name_prefix          = var.name_prefix
-  validate_lambda_arn  = var.csv_validate_lambda_arn
-  transform_lambda_arn = var.csv_transform_lambda_arn
-  persist_lambda_arn   = var.csv_persist_lambda_arn
-  event_bus_name       = var.notify_report_ready_event_bus_name
-  event_source         = var.csv_pipeline_event_source
-  event_detail_type    = var.csv_validated_event_detail_type
-  tags                 = local.common_tags
+  name_prefix              = var.name_prefix
+  validate_lambda_arn      = var.csv_validate_lambda_arn
+  transform_lambda_arn     = var.csv_transform_lambda_arn
+  quality_check_lambda_arn = var.csv_quality_check_lambda_arn
+  persist_lambda_arn       = var.csv_persist_lambda_arn
+  event_bus_name           = var.notify_report_ready_event_bus_name
+  event_source             = var.csv_pipeline_event_source
+  event_detail_type        = var.csv_validated_event_detail_type
+  tags                     = local.common_tags
 }
 
 output "vpc_id" { value = module.vpc.vpc_id }

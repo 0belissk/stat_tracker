@@ -26,15 +26,15 @@ locals {
   ]
 
   state_machine_definition = {
-    Comment = "CSV ingestion pipeline: validate → transform → persist → notify"
+    Comment = "CSV ingestion pipeline: validate → transform → quality-check → persist → notify"
     StartAt = "Validate"
     States = {
       Validate = {
-        Type       = "Task"
-        Resource   = "arn:aws:states:::lambda:invoke"
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = var.validate_lambda_arn
-          Payload.$    = "$"
+          "FunctionName" = var.validate_lambda_arn
+          "Payload.$"    = "$"
         }
         ResultPath = "$.validate"
         Retry      = local.retry_config
@@ -43,24 +43,37 @@ locals {
       }
 
       Transform = {
-        Type       = "Task"
-        Resource   = "arn:aws:states:::lambda:invoke"
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = var.transform_lambda_arn
-          Payload.$    = "$.validate.Payload"
+          "FunctionName" = var.transform_lambda_arn
+          "Payload.$"    = "$.validate.Payload"
         }
         ResultPath = "$.transform"
+        Retry      = local.retry_config
+        Catch      = local.catch_config
+        Next       = "QualityCheck"
+      }
+
+      QualityCheck = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          "FunctionName" = var.quality_check_lambda_arn
+          "Payload.$"    = "$.transform.Payload"
+        }
+        ResultPath = "$.quality"
         Retry      = local.retry_config
         Catch      = local.catch_config
         Next       = "Persist"
       }
 
       Persist = {
-        Type       = "Task"
-        Resource   = "arn:aws:states:::lambda:invoke"
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = var.persist_lambda_arn
-          Payload.$    = "$.transform.Payload"
+          "FunctionName" = var.persist_lambda_arn
+          "Payload.$"    = "$.quality.Payload"
         }
         ResultPath = "$.persist"
         Retry      = local.retry_config
@@ -77,7 +90,7 @@ locals {
               DetailType   = var.event_detail_type
               Source       = var.event_source
               EventBusName = data.aws_event_bus.target.name
-              Detail.$     = "States.JsonToString($.persist.Payload)"
+              "Detail.$"   = "States.JsonToString($.persist.Payload)"
             }
           ]
         }
@@ -90,8 +103,8 @@ locals {
         Type     = "Task"
         Resource = "arn:aws:states:::sqs:sendMessage"
         Parameters = {
-          QueueUrl      = aws_sqs_queue.dlq.id
-          MessageBody.$ = "States.JsonToString($)"
+          QueueUrl        = aws_sqs_queue.dlq.id
+          "MessageBody.$" = "States.JsonToString($)"
         }
         End = true
       }
@@ -133,6 +146,7 @@ data "aws_iam_policy_document" "state_machine" {
     resources = [
       var.validate_lambda_arn,
       var.transform_lambda_arn,
+      var.quality_check_lambda_arn,
       var.persist_lambda_arn,
     ]
   }
