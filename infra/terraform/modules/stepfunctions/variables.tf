@@ -13,6 +13,11 @@ variable "transform_lambda_arn" {
   type        = string
 }
 
+variable "quality_check_lambda_arn" {
+  description = "todo: (Lambda function ARN for the stats quality check step)"
+  type        = string
+}
+
 variable "persist_lambda_arn" {
   description = "todo: (Lambda function ARN for the CSV persistence step)"
   type        = string
