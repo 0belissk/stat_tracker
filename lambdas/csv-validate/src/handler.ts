@@ -4,7 +4,21 @@ import { parse } from 'csv-parse/sync';
 import { Readable } from 'stream';
 import { z, ZodIssue } from 'zod';
 
-const s3Client = new S3Client({});
+const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
+  const specific = process.env[`${serviceEnvKey}_ENDPOINT_URL`]?.trim();
+  if (specific) return specific;
+  const shared = process.env.AWS_ENDPOINT_URL?.trim();
+  return shared || undefined;
+};
+
+const resolveRegion = (): string => process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
+
+const s3Endpoint = resolveEndpoint('S3');
+
+const s3Client = new S3Client({
+  region: resolveRegion(),
+  ...(s3Endpoint ? { endpoint: s3Endpoint, forcePathStyle: true } : {}),
+});
 
 type CsvRow = Record<string, string>;
 
