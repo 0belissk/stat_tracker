@@ -5,9 +5,26 @@ import {
   TransactWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 
-const dynamoDb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
-  marshallOptions: { removeUndefinedValues: true },
-});
+const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
+  const specific = process.env[`${serviceEnvKey}_ENDPOINT_URL`]?.trim();
+  if (specific) return specific;
+  const shared = process.env.AWS_ENDPOINT_URL?.trim();
+  return shared || undefined;
+};
+
+const resolveRegion = (): string => process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
+
+const dynamoEndpoint = resolveEndpoint('DYNAMODB');
+
+const dynamoDb = DynamoDBDocumentClient.from(
+  new DynamoDBClient({
+    region: resolveRegion(),
+    ...(dynamoEndpoint ? { endpoint: dynamoEndpoint } : {}),
+  }),
+  {
+    marshallOptions: { removeUndefinedValues: true },
+  },
+);
 
 const MAX_TRANSACTION_OPERATIONS = 25;
 const OPERATIONS_PER_RECORD = 2;
@@ -150,7 +167,7 @@ const normalizeReports = (event: PersistBatchEvent): NormalizedReportRecord[] =>
       } else if (value === undefined || value === null) {
         stringValue = '';
       } else {
-        stringValue = String(value);
+        stringValue = String(value).trim();
       }
       categories[normalizedKey] = stringValue;
     });
@@ -358,25 +375,18 @@ const groupRecordsByUniquePlayer = (
   return groups;
 };
 
-const executeTransactionBatch = async (
-  records: NormalizedReportRecord[],
-  tableName: string,
-): Promise<void> => {
-  const command = new TransactWriteCommand({
-    TransactItems: records.flatMap((record) => buildTransactItems(record, tableName)),
-    ReturnCancellationReasons: true,
-  });
-
-  await dynamoDb.send(command);
-};
-
 const executeTransactions = async (
   records: NormalizedReportRecord[],
   tableName: string,
 ): Promise<void> => {
   const groups = groupRecordsByUniquePlayer(records);
   for (const group of groups) {
-    await executeTransactionBatch(group, tableName);
+    const command = new TransactWriteCommand({
+      TransactItems: group.flatMap((record) => buildTransactItems(record, tableName)),
+      ReturnCancellationReasons: true,
+    });
+
+    await dynamoDb.send(command);
   }
 };
 

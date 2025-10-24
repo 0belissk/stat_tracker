@@ -1,7 +1,7 @@
 import { EventBridgeEvent } from 'aws-lambda';
 import { SSMClient, GetParametersCommand } from '@aws-sdk/client-ssm';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface ReportCreatedDetail {
@@ -28,9 +28,28 @@ const PARAMETER_KEYS = {
   linkExpirySeconds: 'link-expiry-seconds',
 } as const;
 
-const ssmClient = new SSMClient({});
-const sesClient = new SESv2Client({});
-const s3Client = new S3Client({});
+const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
+  const specific = process.env[`${serviceEnvKey}_ENDPOINT_URL`]?.trim();
+  if (specific) return specific;
+  const shared = process.env.AWS_ENDPOINT_URL?.trim();
+  return shared || undefined;
+};
+
+const resolveRegion = (): string => process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
+
+const region = resolveRegion();
+const ssmEndpoint = resolveEndpoint('SSM');
+const sesEndpoint = resolveEndpoint('SES');
+const s3Endpoint = resolveEndpoint('S3');
+const auditBucket = process.env.EMAIL_AUDIT_BUCKET?.trim();
+const auditPrefix = process.env.EMAIL_AUDIT_PREFIX?.trim();
+
+const ssmClient = new SSMClient({ region, ...(ssmEndpoint ? { endpoint: ssmEndpoint } : {}) });
+const sesClient = new SESv2Client({ region, ...(sesEndpoint ? { endpoint: sesEndpoint } : {}) });
+const s3Client = new S3Client({
+  region,
+  ...(s3Endpoint ? { endpoint: s3Endpoint, forcePathStyle: true } : {}),
+});
 
 let cachedConfig: HandlerConfig | undefined;
 
@@ -149,6 +168,31 @@ export const handler = async (
       },
     }),
   );
+
+  if (sesEndpoint && auditBucket) {
+    const keyPrefix = auditPrefix ? (auditPrefix.endsWith('/') ? auditPrefix : `${auditPrefix}/`) : '';
+    const auditKey = `${keyPrefix}${reportId}.json`;
+    const auditPayload = JSON.stringify(
+      {
+        reportId,
+        recipientEmail,
+        subject,
+        body,
+        downloadUrl: signedUrl,
+      },
+      null,
+      2,
+    );
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: auditBucket,
+        Key: auditKey,
+        Body: auditPayload,
+        ContentType: 'application/json',
+      }),
+    );
+  }
 };
 
 export const __internal = {
