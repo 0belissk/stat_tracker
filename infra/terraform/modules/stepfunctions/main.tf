@@ -26,7 +26,7 @@ locals {
   ]
 
   state_machine_definition = {
-    Comment = "CSV ingestion pipeline: validate → transform → persist → notify"
+    Comment = "CSV ingestion pipeline: validate → transform → quality-check → persist → notify"
     StartAt = "Validate"
     States = {
       Validate = {
@@ -52,6 +52,19 @@ locals {
         ResultPath = "$.transform"
         Retry      = local.retry_config
         Catch      = local.catch_config
+        Next       = "QualityCheck"
+      }
+
+      QualityCheck = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          "FunctionName" = var.quality_check_lambda_arn
+          "Payload.$"    = "$.transform.Payload"
+        }
+        ResultPath = "$.quality"
+        Retry      = local.retry_config
+        Catch      = local.catch_config
         Next       = "Persist"
       }
 
@@ -60,7 +73,7 @@ locals {
         Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
           "FunctionName" = var.persist_lambda_arn
-          "Payload.$"    = "$.transform.Payload"
+          "Payload.$"    = "$.quality.Payload"
         }
         ResultPath = "$.persist"
         Retry      = local.retry_config
@@ -133,6 +146,7 @@ data "aws_iam_policy_document" "state_machine" {
     resources = [
       var.validate_lambda_arn,
       var.transform_lambda_arn,
+      var.quality_check_lambda_arn,
       var.persist_lambda_arn,
     ]
   }

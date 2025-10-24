@@ -97,6 +97,11 @@ variable "csv_transform_lambda_arn" {
   default     = "todo: (Lambda ARN for transform step)"
 }
 
+variable "csv_quality_check_lambda_arn" {
+  description = "todo: (Lambda ARN for the stats quality check step invoked by the Step Functions pipeline)"
+  default     = "todo: (Lambda ARN for stats quality check)"
+}
+
 variable "csv_persist_lambda_arn" {
   description = "todo: (Lambda ARN for the persist step invoked by the Step Functions pipeline)"
   default     = "todo: (Lambda ARN for persist step)"
