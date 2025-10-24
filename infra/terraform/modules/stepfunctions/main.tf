@@ -164,6 +164,29 @@ data "aws_iam_policy_document" "state_machine" {
     actions   = ["sqs:SendMessage"]
     resources = [aws_sqs_queue.dlq.arn]
   }
+
+  statement {
+    sid    = "CloudWatchLogsDelivery"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogDelivery",
+      "logs:GetLogDelivery",
+      "logs:UpdateLogDelivery",
+      "logs:DeleteLogDelivery",
+      "logs:ListLogDeliveries",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "XRayTracing"
+    effect    = "Allow"
+    actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "state_machine" {
