@@ -6,8 +6,8 @@ variable "ddb_table_name" { default = "vsm-main" }
 
 # ⚠️ Change the two S3 bucket names to globally unique values (e.g., add your initials) here or create dev.auto.tfvars with overrides.
 
-variable "notify_report_ready_config_path" {
-  default = "/stat-tracker/notify-report-ready/"
+variable "notify_report_ready_secret_name" {
+  default = "stat-tracker/notify-report-ready"
 }
 
 variable "notify_report_ready_sender" {
@@ -37,6 +37,11 @@ EOT
 
 variable "notify_report_ready_link_expiry_seconds" {
   default = 3600
+}
+
+variable "raw_upload_retention_days" {
+  description = "Number of days to retain raw CSV uploads before automatic deletion"
+  default     = 30
 }
 
 variable "notify_report_ready_package_bucket" {
@@ -79,6 +84,18 @@ variable "players_api_allowed_ingress_cidrs" {
   description = "CIDRs allowed to access the ALB"
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "players_api_allowed_origins" {
+  description = "Allowed CORS origins for the players API"
+  type        = list(string)
+  default     = []
+}
+
+variable "players_api_max_payload_bytes" {
+  description = "Maximum request payload size accepted by the players API"
+  type        = number
+  default     = 1048576
 }
 
 variable "players_api_alarm_actions" {

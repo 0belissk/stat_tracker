@@ -70,7 +70,7 @@ def localstack_container():
         pytest.skip("Docker daemon is required for LocalStack integration tests", allow_module_level=True)
 
     container = LocalStackContainer(image="localstack/localstack:1.5.0").with_services(
-        "s3", "dynamodb", "ssm", "sesv2", "events"
+        "s3", "dynamodb", "secretsmanager", "sesv2", "events"
     )
     with container as started:
         yield started
@@ -96,7 +96,7 @@ def aws_clients(localstack_container) -> Dict[str, Any]:
         "s3": session.client("s3", endpoint_url=endpoint, config=config),
         "dynamodb": session.client("dynamodb", endpoint_url=endpoint, config=config),
         "events": session.client("events", endpoint_url=endpoint, config=config),
-        "ssm": session.client("ssm", endpoint_url=endpoint, config=config),
+        "secretsmanager": session.client("secretsmanager", endpoint_url=endpoint, config=config),
         "sesv2": session.client("sesv2", endpoint_url=endpoint, config=config),
     }
 
@@ -201,7 +201,7 @@ def test_csv_upload_to_email_delivery(aws_clients):
     s3 = aws_clients["s3"]
     dynamodb = aws_clients["dynamodb"]
     events = aws_clients["events"]
-    ssm = aws_clients["ssm"]
+    secrets = aws_clients["secretsmanager"]
     ses = aws_clients["sesv2"]
 
     ingestion_id = "ing-20250315"
@@ -356,30 +356,23 @@ def test_csv_upload_to_email_delivery(aws_clients):
         report_name = f"Weekly training summary #{report['reportId'][-3:]}"
         delivered_reports.append((report, report_key, report_name))
 
-    parameter_path = "/stat-tracker/notify-report-ready/"
+    secret_name = "stat-tracker/notify-report-ready"
     sender_email = "reports@example.com"
 
     ses.create_email_identity(EmailIdentity=sender_email)
 
-    ssm.put_parameter(Name=f"{parameter_path}sender-email", Value=sender_email, Type="String", Overwrite=True)
-    ssm.put_parameter(
-        Name=f"{parameter_path}email-subject",
-        Value="Report ready: {{reportName}}",
-        Type="String",
-        Overwrite=True,
+    secret_payload = json.dumps(
+        {
+            "senderEmail": sender_email,
+            "emailSubject": "Report ready: {{reportName}}",
+            "emailTemplate": (
+                "Hello {{recipientName}}, your {{reportType}} report ({{reportName}}) is ready. "
+                "Download it here: {{downloadUrl}}"
+            ),
+            "linkExpirySeconds": 3600,
+        }
     )
-    ssm.put_parameter(
-        Name=f"{parameter_path}email-template",
-        Value=(
-            "Hello {{recipientName}}, your {{reportType}} report ({{reportName}}) is ready. "
-            "Download it here: {{downloadUrl}}"
-        ),
-        Type="String",
-        Overwrite=True,
-    )
-    ssm.put_parameter(
-        Name=f"{parameter_path}link-expiry-seconds", Value="3600", Type="String", Overwrite=True
-    )
+    secret_result = secrets.create_secret(Name=secret_name, SecretString=secret_payload)
 
     stage_start = time.perf_counter()
     for report, report_key, report_name in delivered_reports:
@@ -387,10 +380,10 @@ def test_csv_upload_to_email_delivery(aws_clients):
             endpoint,
             region,
             {
-                "SSM_ENDPOINT_URL": endpoint,
+                "SECRETSMANAGER_ENDPOINT_URL": endpoint,
                 "SES_ENDPOINT_URL": endpoint,
                 "S3_ENDPOINT_URL": endpoint,
-                "CONFIG_SSM_PARAMETER_PATH": parameter_path,
+                "CONFIG_SECRET_ARN": secret_result["ARN"],
                 "EMAIL_AUDIT_BUCKET": audit_bucket,
                 "EMAIL_AUDIT_PREFIX": "email-outbox/",
             },

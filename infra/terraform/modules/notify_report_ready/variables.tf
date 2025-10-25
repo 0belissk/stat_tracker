@@ -13,8 +13,8 @@ variable "reports_bucket_arn" {
   type        = string
 }
 
-variable "config_path_prefix" {
-  description = "Base SSM parameter path (must end with a slash)"
+variable "config_secret_name" {
+  description = "Secrets Manager secret name storing configuration JSON"
   type        = string
 }
 

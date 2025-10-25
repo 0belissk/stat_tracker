@@ -23,11 +23,19 @@ module "vpc" {
   private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
 }
 
+module "waf" {
+  source              = "../../modules/waf"
+  name_prefix         = var.name_prefix
+  max_body_size_bytes = var.players_api_max_payload_bytes
+  tags                = local.common_tags
+}
+
 module "s3" {
   source             = "../../modules/s3"
   name_prefix        = var.name_prefix
   raw_bucket_name    = var.raw_bucket_name
   report_bucket_name = var.report_bucket_name
+  raw_bucket_retention_days = var.raw_upload_retention_days
 }
 
 module "ddb" {
@@ -54,6 +62,8 @@ module "iam" {
   s3_reports_bucket_arn = "arn:aws:s3:::${var.report_bucket_name}"
   s3_raw_bucket_arn     = "arn:aws:s3:::${var.raw_bucket_name}"
   kms_key_arn           = module.s3.kms_key_arn
+  region                = var.region
+  event_bus_name        = var.notify_report_ready_event_bus_name
 }
 
 module "ecs_service" {
@@ -78,6 +88,7 @@ module "ecs_service" {
   listener_certificate_arn = var.players_api_certificate_arn
   allowed_ingress_cidrs    = var.players_api_allowed_ingress_cidrs
   target_5xx_alarm_actions = var.players_api_alarm_actions
+  web_acl_arn              = module.waf.web_acl_arn
 
   tags = merge(local.common_tags, { Service = "players-api" })
 
@@ -90,6 +101,8 @@ module "ecs_service" {
     EVENTBUS_NAME                    = var.notify_report_ready_event_bus_name
     EVENT_SOURCE                     = var.notify_report_ready_event_source
     EVENT_DETAIL_TYPE_REPORT_CREATED = var.notify_report_ready_event_detail_type
+    ALLOWED_ORIGINS                  = join(",", var.players_api_allowed_origins)
+    MAX_PAYLOAD_BYTES                = tostring(var.players_api_max_payload_bytes)
   }
 }
 
@@ -98,7 +111,7 @@ module "notify_report_ready" {
   name_prefix           = var.name_prefix
   region                = var.region
   reports_bucket_arn    = "arn:aws:s3:::${var.report_bucket_name}"
-  config_path_prefix    = var.notify_report_ready_config_path
+  config_secret_name    = var.notify_report_ready_secret_name
   sender_email          = var.notify_report_ready_sender
   ses_identity          = var.notify_report_ready_ses_identity
   email_subject         = var.notify_report_ready_email_subject
@@ -117,6 +130,7 @@ module "csv_pipeline" {
   name_prefix          = var.name_prefix
   validate_lambda_arn  = var.csv_validate_lambda_arn
   transform_lambda_arn = var.csv_transform_lambda_arn
+  quality_check_lambda_arn  = var.csv_quality_check_lambda_arn
   persist_lambda_arn   = var.csv_persist_lambda_arn
   event_bus_name       = var.notify_report_ready_event_bus_name
   event_source         = var.csv_pipeline_event_source

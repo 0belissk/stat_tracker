@@ -22,3 +22,13 @@ variable "kms_key_arn" {
   description = "ARN of the KMS CMK backing S3 SSE-KMS"
   type        = string
 }
+
+variable "region" {
+  description = "AWS region where resources reside"
+  type        = string
+}
+
+variable "event_bus_name" {
+  description = "EventBridge event bus name the workloads can publish to"
+  type        = string
+}

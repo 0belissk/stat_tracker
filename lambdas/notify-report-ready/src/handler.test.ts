@@ -2,11 +2,11 @@ import { EventBridgeEvent } from 'aws-lambda';
 import type { ReportCreatedDetail } from './handler';
 import { handler, __internal } from './handler';
 
-jest.mock('@aws-sdk/client-ssm', () => {
+jest.mock('@aws-sdk/client-secrets-manager', () => {
   const mockSend = jest.fn();
   return {
-    SSMClient: jest.fn(() => ({ send: mockSend })),
-    GetParametersCommand: jest.fn().mockImplementation((input) => ({ input })),
+    SecretsManagerClient: jest.fn(() => ({ send: mockSend })),
+    GetSecretValueCommand: jest.fn().mockImplementation((input) => ({ input })),
     __mockSend: mockSend,
   };
 });
@@ -29,7 +29,7 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn(),
 }));
 
-const { __mockSend: mockSsmSend } = jest.requireMock('@aws-sdk/client-ssm') as {
+const { __mockSend: mockSecretsSend } = jest.requireMock('@aws-sdk/client-secrets-manager') as {
   __mockSend: jest.Mock;
 };
 
@@ -69,28 +69,16 @@ describe('notify-report-ready handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     __internal.resetConfigCache();
-    process.env.CONFIG_SSM_PARAMETER_PATH = '/stat-tracker/notify-report-ready/';
+    process.env.CONFIG_SECRET_ARN = 'arn:aws:secretsmanager:us-east-1:123456789012:secret:notify';
 
-    mockSsmSend.mockResolvedValue({
-      Parameters: [
-        {
-          Name: '/stat-tracker/notify-report-ready/sender-email',
-          Value: 'reports@stat-tracker.dev',
-        },
-        {
-          Name: '/stat-tracker/notify-report-ready/email-subject',
-          Value: 'Report ready: {{reportName}}',
-        },
-        {
-          Name: '/stat-tracker/notify-report-ready/email-template',
-          Value:
-            'Hello {{recipientName}}, your {{reportType}} report ({{reportName}}) is ready. Download it here: {{downloadUrl}}',
-        },
-        {
-          Name: '/stat-tracker/notify-report-ready/link-expiry-seconds',
-          Value: '3600',
-        },
-      ],
+    mockSecretsSend.mockResolvedValue({
+      SecretString: JSON.stringify({
+        senderEmail: 'reports@stat-tracker.dev',
+        emailSubject: 'Report ready: {{reportName}}',
+        emailTemplate:
+          'Hello {{recipientName}}, your {{reportType}} report ({{reportName}}) is ready. Download it here: {{downloadUrl}}',
+        linkExpirySeconds: 3600,
+      }),
     });
 
     mockGetSignedUrl.mockResolvedValue('https://signed-url.example.com/report');
@@ -100,16 +88,10 @@ describe('notify-report-ready handler', () => {
   it('builds and sends an email with a signed download link', async () => {
     await handler(event());
 
-    expect(mockSsmSend).toHaveBeenCalledWith(
+    expect(mockSecretsSend).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
-          Names: expect.arrayContaining([
-            '/stat-tracker/notify-report-ready/sender-email',
-            '/stat-tracker/notify-report-ready/email-subject',
-            '/stat-tracker/notify-report-ready/email-template',
-            '/stat-tracker/notify-report-ready/link-expiry-seconds',
-          ]),
-          WithDecryption: true,
+          SecretId: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:notify',
         }),
       }),
     );
@@ -140,19 +122,17 @@ describe('notify-report-ready handler', () => {
     );
   });
 
-  it('reuses cached configuration to avoid repeated SSM lookups', async () => {
+  it('reuses cached configuration to avoid repeated secret lookups', async () => {
     await handler(event());
     await handler(event({ reportId: 'xyz-987', s3Key: 'reports/xyz-987.pdf' }));
 
-    expect(mockSsmSend).toHaveBeenCalledTimes(1);
+    expect(mockSecretsSend).toHaveBeenCalledTimes(1);
     expect(mockGetSignedUrl).toHaveBeenCalledTimes(2);
   });
 
   it('throws when required configuration is missing', async () => {
-    mockSsmSend.mockResolvedValueOnce({ Parameters: [] });
+    mockSecretsSend.mockResolvedValueOnce({ SecretString: '{}' });
 
-    await expect(handler(event())).rejects.toThrow(
-      'Missing SSM parameters: /stat-tracker/notify-report-ready/sender-email, /stat-tracker/notify-report-ready/email-subject, /stat-tracker/notify-report-ready/email-template, /stat-tracker/notify-report-ready/link-expiry-seconds',
-    );
+    await expect(handler(event())).rejects.toThrow('Configuration secret is missing required fields');
   });
 });

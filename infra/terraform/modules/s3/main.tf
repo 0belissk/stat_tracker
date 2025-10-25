@@ -83,6 +83,23 @@ resource "aws_s3_bucket_public_access_block" "reports" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "raw" {
+  bucket = aws_s3_bucket.raw.id
+
+  rule {
+    id     = "raw-retention"
+    status = "Enabled"
+
+    expiration {
+      days = var.raw_bucket_retention_days
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.raw_bucket_retention_days
+    }
+  }
+}
+
 data "aws_iam_policy_document" "tls_only_raw" {
   statement {
     sid     = "ForceTLS"
