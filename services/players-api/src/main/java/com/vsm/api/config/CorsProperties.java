@@ -20,10 +20,11 @@ public class CorsProperties {
       return;
     }
 
-    this.allowedOrigins = allowedOrigins.stream()
-        .filter(Objects::nonNull)
-        .map(String::trim)
-        .filter(origin -> !origin.isEmpty())
-        .collect(Collectors.toUnmodifiableList());
+    this.allowedOrigins =
+        allowedOrigins.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .collect(Collectors.toUnmodifiableList());
   }
 }

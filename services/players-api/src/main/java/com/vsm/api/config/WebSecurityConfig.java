@@ -40,7 +40,8 @@ public class WebSecurityConfig {
   }
 
   @Bean
-  public FilterRegistrationBean<PayloadSizeFilter> payloadSizeFilter(SecurityProperties securityProperties) {
+  public FilterRegistrationBean<PayloadSizeFilter> payloadSizeFilter(
+      SecurityProperties securityProperties) {
     FilterRegistrationBean<PayloadSizeFilter> registration =
         new FilterRegistrationBean<>(new PayloadSizeFilter(securityProperties));
     registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
