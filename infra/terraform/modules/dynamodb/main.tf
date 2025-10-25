@@ -2,32 +2,42 @@ resource "aws_dynamodb_table" "this" {
   name         = var.table_name
   billing_mode = "PAY_PER_REQUEST"
 
-  hash_key  = "pk"
-  range_key = "sk"
+  hash_key  = "PK"
+  range_key = "SK"
 
   attribute {
-    name = "pk"
+    name = "PK"
     type = "S"
   }
 
   attribute {
-    name = "sk"
+    name = "SK"
     type = "S"
   }
 
   attribute {
-    name = "reportId"
+    name = "GSI1PK"
     type = "S"
   }
 
   attribute {
-    name = "team"
+    name = "GSI1SK"
     type = "S"
+  }
+
+  dynamic "attribute" {
+    for_each = var.with_team_gsi ? ["GSI2PK", "GSI2SK"] : []
+
+    content {
+      name = attribute.value
+      type = "S"
+    }
   }
 
   global_secondary_index {
-    name            = "reportId"
-    hash_key        = "reportId"
+    name            = "GSI1"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
     projection_type = "ALL"
   }
 
@@ -35,8 +45,9 @@ resource "aws_dynamodb_table" "this" {
     for_each = var.with_team_gsi ? [1] : []
 
     content {
-      name            = "team"
-      hash_key        = "team"
+      name            = "GSI2"
+      hash_key        = "GSI2PK"
+      range_key       = "GSI2SK"
       projection_type = "ALL"
     }
   }

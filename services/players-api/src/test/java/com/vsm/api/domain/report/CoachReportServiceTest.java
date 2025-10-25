@@ -47,7 +47,11 @@ class CoachReportServiceTest {
     verify(storage).store(report, "Rendered report");
     verify(repository).save(report);
     verify(repository)
-        .updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
+        .updateS3Key(
+            report.playerId(),
+            report.reportTimestamp(),
+            report.reportId(),
+            "reports/player-1/report.txt");
     verify(eventPublisher)
         .publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
     verify(auditRepository)
@@ -77,7 +81,11 @@ class CoachReportServiceTest {
 
     verify(storage).store(report, "Rendered report");
     verify(repository)
-        .updateS3Key(report.playerId(), report.reportTimestamp(), "reports/player-1/report.txt");
+        .updateS3Key(
+            report.playerId(),
+            report.reportTimestamp(),
+            report.reportId(),
+            "reports/player-1/report.txt");
     verify(eventPublisher)
         .publishReportCreated(report.playerId(), report.reportId(), "reports/player-1/report.txt");
     verify(auditRepository)
