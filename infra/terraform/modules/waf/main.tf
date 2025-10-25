@@ -98,7 +98,7 @@ resource "aws_wafv2_web_acl" "this" {
 
         field_to_match {
           body {
-            oversize_handling = "MATCH"
+            oversize_handling = "CONTINUE"
           }
         }
 
