@@ -32,3 +32,8 @@ variable "event_bus_name" {
   description = "EventBridge event bus name the workloads can publish to"
   type        = string
 }
+
+variable "custom_metrics_namespace" {
+  description = "CloudWatch namespace used for custom application metrics"
+  type        = string
+}

@@ -2,6 +2,7 @@ package com.vsm.api.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -13,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vsm.api.config.SecurityConfig;
 import com.vsm.api.domain.report.CoachReportService;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
+import com.vsm.api.infrastructure.metrics.ReportMetricsPublisher;
 import com.vsm.api.infrastructure.storage.RawReportUploadPresigner;
 import com.vsm.api.model.ReportRequest;
 import com.vsm.api.model.ReportUploadUrlRequest;
@@ -39,6 +41,8 @@ class CoachReportsControllerTest {
   @MockBean private CoachReportService coachReportService;
 
   @MockBean private RawReportUploadPresigner uploadPresigner;
+
+  @MockBean private ReportMetricsPublisher metricsPublisher;
 
   @MockBean private JwtDecoder jwtDecoder;
 
@@ -96,6 +100,7 @@ class CoachReportsControllerTest {
         .andExpect(jsonPath("$.status").value("QUEUED"));
 
     verify(coachReportService).create(any());
+    verify(metricsPublisher).recordReportCreate(any(), eq("success"));
   }
 
   @Test
@@ -119,6 +124,8 @@ class CoachReportsControllerTest {
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_COACH"))))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.reportId").value(timestamp));
+
+    verify(metricsPublisher).recordReportCreate(any(), eq("duplicate"));
   }
 
   @Test

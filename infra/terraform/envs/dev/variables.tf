@@ -104,6 +104,79 @@ variable "players_api_alarm_actions" {
   default     = []
 }
 
+variable "custom_metrics_namespace" {
+  description = "todo: (CloudWatch namespace for custom metrics)"
+  default     = "todo: (Custom metrics namespace)"
+}
+
+variable "report_latency_metric_service" {
+  description = "todo: (Service dimension value for report_create_latency metric)"
+  default     = "todo: (Service dimension value)"
+}
+
+variable "report_latency_metric_stage" {
+  description = "todo: (Stage/environment dimension for report_create_latency metric)"
+  default     = "todo: (Stage dimension value)"
+}
+
+variable "report_latency_alarm_threshold_ms" {
+  description = "todo: (Threshold in milliseconds for report_create_latency p95 alarm)"
+  type        = number
+  default     = 6000
+}
+
+variable "report_latency_alarm_evaluation_periods" {
+  description = "todo: (Number of evaluation periods for the report_create_latency alarm)"
+  type        = number
+  default     = 3
+}
+
+variable "report_latency_alarm_datapoints" {
+  description = "todo: (Number of datapoints to alarm for report_create_latency)"
+  type        = number
+  default     = 2
+}
+
+variable "report_latency_alarm_actions" {
+  description = "todo: (Alarm action ARNs for the report_create_latency alarm)"
+  type        = list(string)
+  default     = []
+}
+
+variable "ingest_duration_metric_service" {
+  description = "todo: (Service dimension for ingest_duration metric, e.g., 'csv-pipeline')"
+  default     = "todo: (Service dimension value for ingest_duration)"
+}
+
+variable "ingest_duration_metric_stage" {
+  description = "todo: (Stage/environment dimension for ingest_duration metric)"
+  default     = "todo: (Stage dimension for ingest_duration)"
+}
+
+variable "ingest_duration_alarm_threshold_ms" {
+  description = "todo: (Threshold in milliseconds for ingest_duration p95 alarm)"
+  type        = number
+  default     = 900000
+}
+
+variable "ingest_duration_alarm_evaluation_periods" {
+  description = "todo: (Evaluation periods for ingest_duration alarm)"
+  type        = number
+  default     = 3
+}
+
+variable "ingest_duration_alarm_datapoints" {
+  description = "todo: (Datapoints to alarm for ingest_duration)"
+  type        = number
+  default     = 2
+}
+
+variable "ingest_duration_alarm_actions" {
+  description = "todo: (Alarm action ARNs for ingest_duration breaches)"
+  type        = list(string)
+  default     = []
+}
+
 variable "csv_validate_lambda_arn" {
   description = "todo: (Lambda ARN for the csv-validate function used by the Step Functions pipeline)"
   default     = "todo: (Lambda ARN for csv-validate)"

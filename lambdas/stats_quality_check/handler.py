@@ -5,10 +5,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import boto3
+from aws_xray_sdk.core import patch_all, xray_recorder
 from botocore.exceptions import ClientError
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
+
+patch_all()
 
 _CLIENT_CACHE: Dict[str, Any] = {}
 _CONFIG_CACHE: Optional[Dict[str, Any]] = None
@@ -261,7 +264,12 @@ def _query_existing_reports(table_name: str, reports: List[Dict[str, Any]]) -> L
     return failures
 
 
-def _publish_event(status: str, summary: Dict[str, Any], failures: List[Dict[str, Any]]) -> Optional[str]:
+def _publish_event(
+    status: str,
+    summary: Dict[str, Any],
+    failures: List[Dict[str, Any]],
+    correlation_id: Optional[str],
+) -> Optional[str]:
     bus_name = os.environ.get("QUALITY_EVENT_BUS_NAME")
     if not bus_name:
         return None
@@ -275,6 +283,8 @@ def _publish_event(status: str, summary: Dict[str, Any], failures: List[Dict[str
         "summary": summary,
         "failures": failures,
     }
+    if correlation_id:
+        detail["correlationId"] = correlation_id
     response = events_client.put_events(
         Entries=[
             {
@@ -303,6 +313,9 @@ def _build_summary(event: Dict[str, Any], reports: List[Dict[str, Any]], failure
         "totalReports": len(reports),
         "failedReports": len(failures),
     }
+    correlation_id = event.get("correlationId")
+    if isinstance(correlation_id, str) and correlation_id.strip():
+        summary["correlationId"] = correlation_id.strip()
     return summary
 
 
@@ -311,6 +324,22 @@ def handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
 
     config = _load_quality_config()
     reports = _validate_reports(event)
+
+    correlation_id = event.get("correlationId")
+    if isinstance(correlation_id, str):
+        correlation_id = correlation_id.strip() or None
+    else:
+        correlation_id = None
+
+    try:
+        segment = xray_recorder.current_subsegment() or xray_recorder.current_segment()
+        if segment is not None:
+            if correlation_id:
+                segment.put_annotation("correlationId", correlation_id)
+            if event.get("ingestionId"):
+                segment.put_annotation("ingestionId", str(event.get("ingestionId")))
+    except Exception:
+        LOGGER.debug("Failed to annotate X-Ray segment", exc_info=True)
 
     rule_failures = _apply_quality_rules(config, reports)
 
@@ -335,9 +364,11 @@ def handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
     summary = _build_summary(event, reports, failures)
     status = "passed" if not failures else "failed"
 
-    event_id = _publish_event(status, summary, failures)
+    event_id = _publish_event(status, summary, failures, correlation_id)
     if event_id:
         summary["eventBridgeEventId"] = event_id
+    if correlation_id:
+        summary["correlationId"] = correlation_id
 
     if failures:
         summary["status"] = status

@@ -218,3 +218,58 @@ resource "aws_sfn_state_machine" "csv_pipeline" {
 
   tags = merge(var.tags, { Service = "stat-tracker" })
 }
+
+resource "aws_cloudwatch_dashboard" "pipeline" {
+  dashboard_name = "${var.name_prefix}-csv-observability"
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 24
+        height = 6
+        properties = {
+          view    = "timeSeries"
+          region  = var.region
+          title   = "ingest_duration p95"
+          stat    = "p95"
+          period  = 300
+          metrics = [
+            [
+              var.custom_metrics_namespace,
+              "ingest_duration",
+              "Service",
+              var.ingest_duration_metric_service,
+              "Stage",
+              var.ingest_duration_metric_stage
+            ]
+          ]
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_metric_alarm" "ingest_duration" {
+  alarm_name          = "${var.name_prefix}-ingest-duration"
+  alarm_description   = "SLO breach: ingest_duration p95 exceeded threshold"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.ingest_duration_alarm_evaluation_periods
+  datapoints_to_alarm = var.ingest_duration_alarm_datapoints
+  metric_name         = "ingest_duration"
+  namespace           = var.custom_metrics_namespace
+  period              = 300
+  extended_statistic  = "p95"
+  threshold           = var.ingest_duration_alarm_threshold_ms
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    Service = var.ingest_duration_metric_service
+    Stage   = var.ingest_duration_metric_stage
+  }
+
+  alarm_actions = var.ingest_duration_alarm_actions
+
+  tags = var.tags
+}

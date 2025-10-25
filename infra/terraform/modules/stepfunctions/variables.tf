@@ -3,6 +3,11 @@ variable "name_prefix" {
   type        = string
 }
 
+variable "region" {
+  description = "AWS region for CloudWatch widgets"
+  type        = string
+}
+
 variable "validate_lambda_arn" {
   description = "todo: (Lambda function ARN for the CSV validation step)"
   type        = string
@@ -75,4 +80,43 @@ variable "tags" {
   description = "Additional resource tags"
   type        = map(string)
   default     = {}
+}
+
+variable "custom_metrics_namespace" {
+  description = "CloudWatch namespace for ingestion metrics"
+  type        = string
+}
+
+variable "ingest_duration_metric_service" {
+  description = "Dimension value identifying the ingestion pipeline for ingest_duration"
+  type        = string
+}
+
+variable "ingest_duration_metric_stage" {
+  description = "Stage/environment dimension for ingest_duration"
+  type        = string
+}
+
+variable "ingest_duration_alarm_threshold_ms" {
+  description = "Threshold in milliseconds for the ingest_duration p95 alarm"
+  type        = number
+  default     = 900000
+}
+
+variable "ingest_duration_alarm_evaluation_periods" {
+  description = "Evaluation periods for the ingest_duration alarm"
+  type        = number
+  default     = 3
+}
+
+variable "ingest_duration_alarm_datapoints" {
+  description = "Datapoints to alarm for the ingest_duration metric"
+  type        = number
+  default     = 2
+}
+
+variable "ingest_duration_alarm_actions" {
+  description = "Optional alarm action ARNs for ingest_duration breaches"
+  type        = list(string)
+  default     = []
 }

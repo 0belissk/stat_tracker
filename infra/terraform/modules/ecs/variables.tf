@@ -116,6 +116,45 @@ variable "target_5xx_alarm_actions" {
   default     = []
 }
 
+variable "custom_metrics_namespace" {
+  description = "CloudWatch namespace for custom application metrics"
+  type        = string
+}
+
+variable "report_latency_metric_service" {
+  description = "Dimension value identifying the service for report_create_latency"
+  type        = string
+}
+
+variable "report_latency_metric_stage" {
+  description = "Stage/environment dimension for report_create_latency"
+  type        = string
+}
+
+variable "report_latency_alarm_threshold_ms" {
+  description = "Threshold in milliseconds for the report_create_latency p95 alarm"
+  type        = number
+  default     = 6000
+}
+
+variable "report_latency_alarm_evaluation_periods" {
+  description = "Evaluation periods for the report_create_latency alarm"
+  type        = number
+  default     = 3
+}
+
+variable "report_latency_alarm_datapoints" {
+  description = "Number of datapoints breaching before triggering the report_create_latency alarm"
+  type        = number
+  default     = 2
+}
+
+variable "report_latency_alarm_actions" {
+  description = "Optional list of ARNs (e.g., SNS topic) to notify for the report_create_latency alarm"
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Common tags to apply to resources"
   type        = map(string)
