@@ -358,3 +358,9 @@ resource "aws_cloudwatch_metric_alarm" "target_5xx" {
 
   tags = merge(var.tags, { Service = local.service_name })
 }
+
+resource "aws_wafv2_web_acl_association" "alb" {
+  count        = var.web_acl_arn == null ? 0 : 1
+  resource_arn = aws_lb.app.arn
+  web_acl_arn  = var.web_acl_arn
+}

@@ -1,5 +1,5 @@
 import { EventBridgeEvent } from 'aws-lambda';
-import { SSMClient, GetParametersCommand } from '@aws-sdk/client-ssm';
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -21,13 +21,6 @@ interface HandlerConfig {
   linkExpirySeconds: number;
 }
 
-const PARAMETER_KEYS = {
-  senderEmail: 'sender-email',
-  emailSubject: 'email-subject',
-  emailTemplate: 'email-template',
-  linkExpirySeconds: 'link-expiry-seconds',
-} as const;
-
 const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
   const specific = process.env[`${serviceEnvKey}_ENDPOINT_URL`]?.trim();
   if (specific) return specific;
@@ -38,13 +31,16 @@ const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
 const resolveRegion = (): string => process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
 
 const region = resolveRegion();
-const ssmEndpoint = resolveEndpoint('SSM');
+const secretsManagerEndpoint = resolveEndpoint('SECRETSMANAGER');
 const sesEndpoint = resolveEndpoint('SES');
 const s3Endpoint = resolveEndpoint('S3');
 const auditBucket = process.env.EMAIL_AUDIT_BUCKET?.trim();
 const auditPrefix = process.env.EMAIL_AUDIT_PREFIX?.trim();
 
-const ssmClient = new SSMClient({ region, ...(ssmEndpoint ? { endpoint: ssmEndpoint } : {}) });
+const secretsManagerClient = new SecretsManagerClient({
+  region,
+  ...(secretsManagerEndpoint ? { endpoint: secretsManagerEndpoint } : {}),
+});
 const sesClient = new SESv2Client({ region, ...(sesEndpoint ? { endpoint: sesEndpoint } : {}) });
 const s3Client = new S3Client({
   region,
@@ -53,12 +49,12 @@ const s3Client = new S3Client({
 
 let cachedConfig: HandlerConfig | undefined;
 
-const ensureConfigPath = (): string => {
-  const path = process.env.CONFIG_SSM_PARAMETER_PATH;
-  if (!path) {
-    throw new Error('CONFIG_SSM_PARAMETER_PATH environment variable is required');
+const ensureConfigSecretArn = (): string => {
+  const secretArn = process.env.CONFIG_SECRET_ARN?.trim();
+  if (!secretArn) {
+    throw new Error('CONFIG_SECRET_ARN environment variable is required');
   }
-  return path.endsWith('/') ? path : `${path}/`;
+  return secretArn;
 };
 
 const fetchConfig = async (): Promise<HandlerConfig> => {
@@ -66,38 +62,42 @@ const fetchConfig = async (): Promise<HandlerConfig> => {
     return cachedConfig;
   }
 
-  const parameterPath = ensureConfigPath();
-  const parameterNames = Object.values(PARAMETER_KEYS).map((key) => `${parameterPath}${key}`);
-
-  const response = await ssmClient.send(
-    new GetParametersCommand({
-      Names: parameterNames,
-      WithDecryption: true,
-    }),
+  const secretArn = ensureConfigSecretArn();
+  const response = await secretsManagerClient.send(
+    new GetSecretValueCommand({ SecretId: secretArn }),
   );
 
-  const resolved = new Map<string, string>();
-  (response.Parameters ?? []).forEach((parameter) => {
-    if (parameter.Name && parameter.Value !== undefined) {
-      resolved.set(parameter.Name, parameter.Value);
-    }
-  });
+  const secretPayload =
+    response.SecretString ??
+    (response.SecretBinary ? Buffer.from(response.SecretBinary).toString('utf-8') : undefined);
 
-  const missing = parameterNames.filter((name) => !resolved.has(name));
-  if (missing.length > 0) {
-    throw new Error(`Missing SSM parameters: ${missing.join(', ')}`);
+  if (!secretPayload) {
+    throw new Error('Configuration secret did not include a value');
   }
 
-  const linkExpirySeconds = Number(resolved.get(`${parameterPath}${PARAMETER_KEYS.linkExpirySeconds}`));
-  if (!Number.isFinite(linkExpirySeconds) || linkExpirySeconds <= 0) {
-    throw new Error('link-expiry-seconds must be a positive number');
+  let parsed: Partial<HandlerConfig & { linkExpirySeconds: number }>;
+  try {
+    parsed = JSON.parse(secretPayload);
+  } catch (error) {
+    throw new Error('Configuration secret is not valid JSON');
+  }
+
+  const { senderEmail, emailSubject, emailTemplate, linkExpirySeconds } = parsed;
+
+  if (!senderEmail || !emailSubject || !emailTemplate) {
+    throw new Error('Configuration secret is missing required fields');
+  }
+
+  const expirySeconds = Number(linkExpirySeconds);
+  if (!Number.isFinite(expirySeconds) || expirySeconds <= 0) {
+    throw new Error('Configuration secret linkExpirySeconds must be a positive number');
   }
 
   cachedConfig = {
-    senderEmail: resolved.get(`${parameterPath}${PARAMETER_KEYS.senderEmail}`)!,
-    emailSubject: resolved.get(`${parameterPath}${PARAMETER_KEYS.emailSubject}`)!,
-    emailTemplate: resolved.get(`${parameterPath}${PARAMETER_KEYS.emailTemplate}`)!,
-    linkExpirySeconds,
+    senderEmail,
+    emailSubject,
+    emailTemplate,
+    linkExpirySeconds: expirySeconds,
   };
 
   return cachedConfig;

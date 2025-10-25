@@ -9,7 +9,7 @@ This runbook covers the CSV ingestion pipeline that starts when a coach uploads 
 | Transform | (Step Functions task) | Convert rows to normalized report payloads consumed downstream. |
 | Quality Check | `lambdas/stats_quality_check` | Apply configurable rules, detect duplicates, emit EventBridge telemetry. |
 | Persist | `lambdas/persist-batch` | Transactionally store reports + update player metadata in DynamoDB. |
-| Notify | `lambdas/notify-report-ready` | Fetch email templates from SSM, presign report text in S3, send SES email. |
+| Notify | `lambdas/notify-report-ready` | Fetch email templates from Secrets Manager, presign report text in S3, send SES email. |
 
 Target SLO: **CSV upload → email delivery < 60 seconds (p95)**. Automated integration test `tests/python/integration/test_csv_to_email_e2e.py` records per-stage timings and prints them when run with `pytest -s`.
 
@@ -46,7 +46,7 @@ Target SLO: **CSV upload → email delivery < 60 seconds (p95)**. Automated inte
 4. **Email delivery issues**
    - Symptoms: Step Function succeeds but players report missing emails; SES metrics show delivery issues.
    - Actions:
-     1. Verify SSM parameters under `CONFIG_SSM_PARAMETER_PATH` contain correct sender email, subject template, and body.
+     1. Verify the Secrets Manager payload referenced by `CONFIG_SECRET_ARN` contains sender email, subject template, and body.
      2. Confirm SES identity is verified and not suppressed (check complaints/bounces).
      3. Validate S3 object referenced in event exists and is readable.
      4. Resend email by publishing `report.created` event to EventBridge.

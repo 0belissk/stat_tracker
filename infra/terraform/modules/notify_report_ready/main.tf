@@ -17,48 +17,28 @@ data "aws_iam_policy_document" "assume_lambda" {
 }
 
 locals {
-  parameter_names = {
-    sender_email       = "${var.config_path_prefix}sender-email"
-    email_subject      = "${var.config_path_prefix}email-subject"
-    email_template     = "${var.config_path_prefix}email-template"
-    link_expiry_second = "${var.config_path_prefix}link-expiry-seconds"
-  }
-
   reports_bucket_objects_arn = "${var.reports_bucket_arn}/*"
   ses_identity               = coalesce(var.ses_identity, var.sender_email)
   ses_identity_arn           = "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/${local.ses_identity}"
 }
 
-resource "aws_ssm_parameter" "sender_email" {
-  name        = local.parameter_names.sender_email
-  description = "Sender email address for notify-report-ready"
-  type        = "String"
-  value       = var.sender_email
-  overwrite   = true
+resource "aws_secretsmanager_secret" "config" {
+  name        = var.config_secret_name
+  description = "notify-report-ready configuration"
+
+  tags = {
+    Service = "stat-tracker"
+  }
 }
 
-resource "aws_ssm_parameter" "email_subject" {
-  name        = local.parameter_names.email_subject
-  description = "Email subject template for notify-report-ready"
-  type        = "String"
-  value       = var.email_subject
-  overwrite   = true
-}
-
-resource "aws_ssm_parameter" "email_template" {
-  name        = local.parameter_names.email_template
-  description = "Email body template for notify-report-ready"
-  type        = "String"
-  value       = var.email_template
-  overwrite   = true
-}
-
-resource "aws_ssm_parameter" "link_expiry_seconds" {
-  name        = local.parameter_names.link_expiry_second
-  description = "Download link expiry time for notify-report-ready"
-  type        = "String"
-  value       = tostring(var.link_expiry_seconds)
-  overwrite   = true
+resource "aws_secretsmanager_secret_version" "config" {
+  secret_id = aws_secretsmanager_secret.config.id
+  secret_string = jsonencode({
+    senderEmail       = var.sender_email
+    emailSubject      = var.email_subject
+    emailTemplate     = var.email_template
+    linkExpirySeconds = var.link_expiry_seconds
+  })
 }
 
 resource "aws_iam_role" "notify_report_ready" {
@@ -79,13 +59,8 @@ data "aws_iam_policy_document" "notify_report_ready" {
   statement {
     sid    = "ReadConfig"
     effect = "Allow"
-    actions = ["ssm:GetParameter", "ssm:GetParameters"]
-    resources = [
-      aws_ssm_parameter.sender_email.arn,
-      aws_ssm_parameter.email_subject.arn,
-      aws_ssm_parameter.email_template.arn,
-      aws_ssm_parameter.link_expiry_seconds.arn,
-    ]
+    actions = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [aws_secretsmanager_secret.config.arn]
   }
 
   statement {
@@ -120,7 +95,7 @@ resource "aws_lambda_function" "notify_report_ready" {
 
   environment {
     variables = {
-      CONFIG_SSM_PARAMETER_PATH = var.config_path_prefix
+      CONFIG_SECRET_ARN = aws_secretsmanager_secret.config.arn
     }
   }
 
@@ -163,6 +138,6 @@ output "event_rule_name" {
   value = aws_cloudwatch_event_rule.report_created.name
 }
 
-output "config_parameter_prefix" {
-  value = var.config_path_prefix
+output "config_secret_arn" {
+  value = aws_secretsmanager_secret.config.arn
 }

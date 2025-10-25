@@ -127,3 +127,9 @@ variable "app_environment" {
   type        = map(string)
   default     = {}
 }
+
+variable "web_acl_arn" {
+  description = "Optional WAFv2 Web ACL ARN to associate with the ALB"
+  type        = string
+  default     = null
+}

@@ -47,3 +47,7 @@ app:
     source: "${EVENT_SOURCE:Todo: Event source string (e.g., 'com.vsm.reports')}"
     detailType:
       reportCreated: "${EVENT_DETAIL_TYPE_REPORT_CREATED:Todo: Event detail-type (e.g., 'report.created')}"
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:}
+  security:
+    max-payload-bytes: ${MAX_PAYLOAD_BYTES:1048576}

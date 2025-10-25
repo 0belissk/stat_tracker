@@ -1,7 +1,10 @@
+data "aws_caller_identity" "current" {}
+
 locals {
   raw_bucket_objects     = "${var.s3_raw_bucket_arn}/*"
   reports_bucket_objects = "${var.s3_reports_bucket_arn}/*"
   ddb_table_indexes_arn  = "${var.ddb_table_arn}/index/*"
+  event_bus_arn          = "arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:event-bus/${var.event_bus_name}"
 }
 
 ############################
@@ -52,7 +55,7 @@ data "aws_iam_policy_document" "ecs_task_base" {
   statement {
     sid     = "S3ObjectAccess"
     effect  = "Allow"
-    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    actions = ["s3:GetObject", "s3:PutObject"]
     resources = [local.raw_bucket_objects, local.reports_bucket_objects]
   }
 
@@ -80,7 +83,7 @@ data "aws_iam_policy_document" "ecs_task_base" {
     sid     = "EventBridge"
     effect  = "Allow"
     actions   = ["events:PutEvents"]
-    resources = ["*"]
+    resources = [local.event_bus_arn]
   }
 
 }
@@ -130,7 +133,7 @@ data "aws_iam_policy_document" "lambda_extra" {
   statement {
     sid     = "S3Access"
     effect  = "Allow"
-    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+    actions = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
     resources = [
       var.s3_raw_bucket_arn,      local.raw_bucket_objects,
       var.s3_reports_bucket_arn,  local.reports_bucket_objects
@@ -169,14 +172,7 @@ data "aws_iam_policy_document" "lambda_extra" {
     sid     = "EventBridge"
     effect  = "Allow"
     actions   = ["events:PutEvents"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid     = "SES"
-    effect  = "Allow"
-    actions = ["ses:SendEmail", "ses:SendRawEmail"]
-    resources = ["*"]
+    resources = [local.event_bus_arn]
   }
 }
 
