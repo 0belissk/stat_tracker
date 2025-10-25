@@ -32,6 +32,7 @@ app:
     dynamodb-endpoint: ${DYNAMODB_ENDPOINT:}
     s3-endpoint: ${S3_ENDPOINT:} # optional local override
     eventbridge-endpoint: ${EVENTBRIDGE_ENDPOINT:} # optional local override
+    cloudwatch-endpoint: ${CLOUDWATCH_ENDPOINT:} # optional local override
   reports:
     table-name: ${REPORTS_TABLE_NAME:vsm-main}
   s3:
@@ -47,6 +48,10 @@ app:
     source: "${EVENT_SOURCE:Todo: Event source string (e.g., 'com.vsm.reports')}"
     detailType:
       reportCreated: "${EVENT_DETAIL_TYPE_REPORT_CREATED:Todo: Event detail-type (e.g., 'report.created')}"
+  metrics:
+    namespace: "${CUSTOM_METRICS_NAMESPACE:Todo: CloudWatch namespace for custom application metrics}"
+    service: "${CUSTOM_METRICS_SERVICE_NAME:Todo: Dimension value identifying this service (e.g., 'players-api')}"
+    stage: "${CUSTOM_METRICS_STAGE:Todo: Environment/stage dimension value (e.g., 'dev')}"
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:}
   security:

@@ -3,6 +3,7 @@ package com.vsm.api.web;
 import com.vsm.api.domain.report.CoachReport;
 import com.vsm.api.domain.report.CoachReportService;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
+import com.vsm.api.infrastructure.metrics.ReportMetricsPublisher;
 import com.vsm.api.infrastructure.storage.RawReportUploadPresigner;
 import com.vsm.api.model.ReportRequest;
 import com.vsm.api.model.ReportResponse;
@@ -11,6 +12,7 @@ import com.vsm.api.model.ReportUploadUrlResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import org.springframework.http.HttpStatus;
@@ -31,11 +33,15 @@ public class CoachReportsController {
 
   private final CoachReportService coachReportService;
   private final RawReportUploadPresigner uploadPresigner;
+  private final ReportMetricsPublisher metrics;
 
   public CoachReportsController(
-      CoachReportService coachReportService, RawReportUploadPresigner uploadPresigner) {
+      CoachReportService coachReportService,
+      RawReportUploadPresigner uploadPresigner,
+      ReportMetricsPublisher metrics) {
     this.coachReportService = coachReportService;
     this.uploadPresigner = uploadPresigner;
+    this.metrics = metrics;
   }
 
   @PostMapping
@@ -46,6 +52,8 @@ public class CoachReportsController {
       @RequestHeader("reportId") String reportIdHeader,
       @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ReportRequest req) {
+    Instant start = Instant.now();
+    String outcome = "success";
     Instant reportTimestamp = parseReportTimestamp(reportIdHeader);
     CoachReport report =
         new CoachReport(
@@ -59,8 +67,14 @@ public class CoachReportsController {
     try {
       coachReportService.create(report);
     } catch (ReportAlreadyExistsException ignored) {
-      // Idempotent retry - treat as success.
+      outcome = "duplicate";
+    } catch (RuntimeException ex) {
+      outcome = "error";
+      metrics.recordReportCreate(Duration.between(start, Instant.now()), outcome);
+      throw ex;
     }
+
+    metrics.recordReportCreate(Duration.between(start, Instant.now()), outcome);
 
     return ResponseEntity.accepted()
         .body(new ReportResponse(report.reportId(), "QUEUED", Instant.now()));

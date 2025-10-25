@@ -42,3 +42,8 @@ output "target_5xx_alarm_arn" {
   description = "CloudWatch alarm ARN watching for 5xx responses"
   value       = aws_cloudwatch_metric_alarm.target_5xx.arn
 }
+
+output "report_latency_alarm_arn" {
+  description = "CloudWatch alarm ARN tracking report_create_latency p95"
+  value       = aws_cloudwatch_metric_alarm.report_create_latency.arn
+}

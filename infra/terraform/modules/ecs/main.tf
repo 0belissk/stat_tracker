@@ -329,6 +329,30 @@ resource "aws_cloudwatch_dashboard" "app" {
             ]
           ]
         }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          view    = "timeSeries"
+          region  = var.region
+          title   = "report_create_latency p95"
+          stat    = "p95"
+          period  = 60
+          metrics = [
+            [
+              var.custom_metrics_namespace,
+              "report_create_latency",
+              "Service",
+              var.report_latency_metric_service,
+              "Stage",
+              var.report_latency_metric_stage
+            ]
+          ]
+        }
       }
     ]
   })
@@ -355,6 +379,29 @@ resource "aws_cloudwatch_metric_alarm" "target_5xx" {
   }
 
   alarm_actions = var.target_5xx_alarm_actions
+
+  tags = merge(var.tags, { Service = local.service_name })
+}
+
+resource "aws_cloudwatch_metric_alarm" "report_create_latency" {
+  alarm_name          = "${local.service_name}-report-create-latency"
+  alarm_description   = "SLO breach: report_create_latency p95 exceeded threshold"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.report_latency_alarm_evaluation_periods
+  datapoints_to_alarm = var.report_latency_alarm_datapoints
+  metric_name         = "report_create_latency"
+  namespace           = var.custom_metrics_namespace
+  period              = 60
+  extended_statistic  = "p95"
+  threshold           = var.report_latency_alarm_threshold_ms
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    Service = var.report_latency_metric_service
+    Stage   = var.report_latency_metric_stage
+  }
+
+  alarm_actions = var.report_latency_alarm_actions
 
   tags = merge(var.tags, { Service = local.service_name })
 }

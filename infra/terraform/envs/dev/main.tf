@@ -64,6 +64,7 @@ module "iam" {
   kms_key_arn           = module.s3.kms_key_arn
   region                = var.region
   event_bus_name        = var.notify_report_ready_event_bus_name
+  custom_metrics_namespace = var.custom_metrics_namespace
 }
 
 module "ecs_service" {
@@ -89,6 +90,13 @@ module "ecs_service" {
   allowed_ingress_cidrs    = var.players_api_allowed_ingress_cidrs
   target_5xx_alarm_actions = var.players_api_alarm_actions
   web_acl_arn              = module.waf.web_acl_arn
+  custom_metrics_namespace         = var.custom_metrics_namespace
+  report_latency_metric_service    = var.report_latency_metric_service
+  report_latency_metric_stage      = var.report_latency_metric_stage
+  report_latency_alarm_threshold_ms = var.report_latency_alarm_threshold_ms
+  report_latency_alarm_evaluation_periods = var.report_latency_alarm_evaluation_periods
+  report_latency_alarm_datapoints  = var.report_latency_alarm_datapoints
+  report_latency_alarm_actions     = var.report_latency_alarm_actions
 
   tags = merge(local.common_tags, { Service = "players-api" })
 
@@ -103,6 +111,9 @@ module "ecs_service" {
     EVENT_DETAIL_TYPE_REPORT_CREATED = var.notify_report_ready_event_detail_type
     ALLOWED_ORIGINS                  = join(",", var.players_api_allowed_origins)
     MAX_PAYLOAD_BYTES                = tostring(var.players_api_max_payload_bytes)
+    CUSTOM_METRICS_NAMESPACE         = var.custom_metrics_namespace
+    CUSTOM_METRICS_SERVICE_NAME      = var.report_latency_metric_service
+    CUSTOM_METRICS_STAGE             = var.report_latency_metric_stage
   }
 }
 
@@ -128,6 +139,7 @@ module "csv_pipeline" {
   source = "../../modules/stepfunctions"
 
   name_prefix          = var.name_prefix
+  region               = var.region
   validate_lambda_arn  = var.csv_validate_lambda_arn
   transform_lambda_arn = var.csv_transform_lambda_arn
   quality_check_lambda_arn  = var.csv_quality_check_lambda_arn
@@ -135,6 +147,13 @@ module "csv_pipeline" {
   event_bus_name       = var.notify_report_ready_event_bus_name
   event_source         = var.csv_pipeline_event_source
   event_detail_type    = var.csv_validated_event_detail_type
+  custom_metrics_namespace       = var.custom_metrics_namespace
+  ingest_duration_metric_service = var.ingest_duration_metric_service
+  ingest_duration_metric_stage   = var.ingest_duration_metric_stage
+  ingest_duration_alarm_threshold_ms = var.ingest_duration_alarm_threshold_ms
+  ingest_duration_alarm_evaluation_periods = var.ingest_duration_alarm_evaluation_periods
+  ingest_duration_alarm_datapoints = var.ingest_duration_alarm_datapoints
+  ingest_duration_alarm_actions   = var.ingest_duration_alarm_actions
   tags                 = local.common_tags
 }
 
@@ -152,5 +171,8 @@ output "lambda_role" { value = module.iam.lambda_role_name }
 output "players_api_alb_dns" { value = module.ecs_service.alb_dns_name }
 output "players_api_dashboard" { value = module.ecs_service.dashboard_name }
 output "players_api_5xx_alarm_arn" { value = module.ecs_service.target_5xx_alarm_arn }
+output "players_api_report_latency_alarm_arn" { value = module.ecs_service.report_latency_alarm_arn }
 output "csv_pipeline_state_machine_arn" { value = module.csv_pipeline.state_machine_arn }
 output "csv_pipeline_dlq_url" { value = module.csv_pipeline.dlq_url }
+output "csv_pipeline_dashboard_name" { value = module.csv_pipeline.dashboard_name }
+output "csv_pipeline_ingest_alarm_arn" { value = module.csv_pipeline.ingest_duration_alarm_arn }

@@ -1,9 +1,11 @@
+import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
   TransactWriteCommand,
   TransactWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
+import { captureAWSv3Client, getSegment } from 'aws-xray-sdk-core';
 
 const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
   const specific = process.env[`${serviceEnvKey}_ENDPOINT_URL`]?.trim();
@@ -15,22 +17,40 @@ const resolveEndpoint = (serviceEnvKey: string): string | undefined => {
 const resolveRegion = (): string => process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
 
 const dynamoEndpoint = resolveEndpoint('DYNAMODB');
+const cloudWatchEndpoint = resolveEndpoint('CLOUDWATCH');
 
-const dynamoDb = DynamoDBDocumentClient.from(
+const tracedDynamo = captureAWSv3Client(
   new DynamoDBClient({
     region: resolveRegion(),
     ...(dynamoEndpoint ? { endpoint: dynamoEndpoint } : {}),
   }),
-  {
-    marshallOptions: { removeUndefinedValues: true },
-  },
 );
+
+const dynamoDb = DynamoDBDocumentClient.from(tracedDynamo, {
+  marshallOptions: { removeUndefinedValues: true },
+});
+
+const cloudWatchClient = captureAWSv3Client(
+  new CloudWatchClient({
+    region: resolveRegion(),
+    ...(cloudWatchEndpoint ? { endpoint: cloudWatchEndpoint } : {}),
+  }),
+);
+
+const metricsNamespace =
+  process.env.CUSTOM_METRICS_NAMESPACE ?? 'Todo: Provide CloudWatch namespace for Lambda metrics';
+const metricsService =
+  process.env.CUSTOM_METRICS_SERVICE_NAME ??
+  'Todo: Service dimension value for persist-batch metrics (e.g., csv-pipeline)';
+const metricsStage = process.env.CUSTOM_METRICS_STAGE ?? 'Todo: Stage for metrics (e.g., dev)';
 
 const MAX_TRANSACTION_OPERATIONS = 25;
 const OPERATIONS_PER_RECORD = 2;
 const MAX_RECORDS_PER_TRANSACTION = Math.floor(
   MAX_TRANSACTION_OPERATIONS / OPERATIONS_PER_RECORD,
 );
+
+type TransactItem = NonNullable<TransactWriteCommandInput['TransactItems']>[number];
 
 export interface PersistBatchReport {
   reportId: string;
@@ -48,6 +68,9 @@ export interface PersistBatchEvent {
   ingestionId?: string;
   sourceBucket?: string;
   sourceKey?: string;
+  correlationId?: string;
+  ingestStartedAt?: string;
+  traceHeader?: string;
   reports: PersistBatchReport[];
 }
 
@@ -56,6 +79,8 @@ export interface PersistBatchResult {
   total: number;
   processed: number;
   skipped: number;
+  correlationId?: string;
+  ingestDurationMs?: number;
 }
 
 export interface PersistFailureDetail {
@@ -89,6 +114,8 @@ interface NormalizedReportRecord {
   ingestionId?: string;
   sourceBucket?: string;
   sourceKey?: string;
+  correlationId?: string;
+  ingestStartedAt?: string;
   sortKey: string;
   gsi2SortKey?: string;
 }
@@ -129,6 +156,14 @@ const normalizeReports = (event: PersistBatchEvent): NormalizedReportRecord[] =>
   const sourceBucket =
     typeof event.sourceBucket === 'string' ? event.sourceBucket.trim() || undefined : undefined;
   const sourceKey = typeof event.sourceKey === 'string' ? event.sourceKey.trim() || undefined : undefined;
+  const correlationId =
+    typeof event.correlationId === 'string' && event.correlationId.trim().length > 0
+      ? event.correlationId.trim()
+      : undefined;
+  const ingestStartedAt =
+    typeof event.ingestStartedAt === 'string' && event.ingestStartedAt.trim().length > 0
+      ? normalizeTimestamp(event.ingestStartedAt, 'event.ingestStartedAt')
+      : undefined;
 
   return event.reports.map((report, index) => {
     if (!report || typeof report !== 'object') {
@@ -199,10 +234,113 @@ const normalizeReports = (event: PersistBatchEvent): NormalizedReportRecord[] =>
       ingestionId: ingestionId || undefined,
       sourceBucket,
       sourceKey,
+      correlationId,
+      ingestStartedAt,
       sortKey,
       gsi2SortKey: trimmedTeamId ? `CREATED#${reportTimestampKey}#${reportId}` : undefined,
     };
   });
+};
+
+const computeDurationMs = (iso?: string, endTimeMs: number = Date.now()): number | undefined => {
+  if (!iso) {
+    return undefined;
+  }
+
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) {
+    return undefined;
+  }
+
+  return Math.max(0, endTimeMs - parsed);
+};
+
+const publishDurationMetric = async (
+  metricName: string,
+  millis: number | undefined,
+  outcome: string,
+  correlationId?: string,
+): Promise<void> => {
+  if (millis === undefined || !Number.isFinite(millis)) {
+    return;
+  }
+
+  const baseDimensions: { Name: string; Value: string }[] = [];
+  const trimmedService = metricsService.trim();
+  if (trimmedService) {
+    baseDimensions.push({ Name: 'Service', Value: trimmedService });
+  }
+  const trimmedStage = metricsStage.trim();
+  if (trimmedStage) {
+    baseDimensions.push({ Name: 'Stage', Value: trimmedStage });
+  }
+
+  const metricData = [
+    {
+      MetricName: metricName,
+      Unit: 'Milliseconds',
+      Value: millis,
+      Dimensions: baseDimensions,
+    },
+  ];
+
+  const detailedDimensions = [...baseDimensions];
+  let hasDetailedDimensions = false;
+  const trimmedOutcome = outcome.trim();
+  if (trimmedOutcome) {
+    detailedDimensions.push({ Name: 'Outcome', Value: trimmedOutcome });
+    hasDetailedDimensions = true;
+  }
+
+  const trimmedCorrelation = correlationId?.trim();
+  if (trimmedCorrelation) {
+    detailedDimensions.push({ Name: 'CorrelationId', Value: trimmedCorrelation });
+    hasDetailedDimensions = true;
+  }
+
+  if (hasDetailedDimensions) {
+    metricData.push({
+      MetricName: `${metricName}_by_outcome`,
+      Unit: 'Milliseconds',
+      Value: millis,
+      Dimensions: detailedDimensions,
+    });
+  }
+
+  try {
+    await cloudWatchClient.send(
+      new PutMetricDataCommand({
+        Namespace: metricsNamespace,
+        MetricData: metricData,
+      }),
+    );
+  } catch (error) {
+    console.warn(`Failed to publish ${metricName} metric`, error);
+  }
+};
+
+const annotateTraceContext = (
+  correlationId?: string,
+  ingestionId?: string,
+  traceHeader?: string,
+): void => {
+  try {
+    const segment = getSegment();
+    if (!segment) {
+      return;
+    }
+    if (correlationId) {
+      segment.addAnnotation('correlationId', correlationId);
+    }
+    if (ingestionId) {
+      segment.addAnnotation('ingestionId', ingestionId);
+    }
+    if (traceHeader) {
+      segment.addMetadata('eventTraceHeader', traceHeader);
+    }
+  } catch {
+    // Ignore tracing errors
+  }
 };
 
 const chunkRecords = <T>(records: T[], size: number): T[][] => {
@@ -216,7 +354,7 @@ const chunkRecords = <T>(records: T[], size: number): T[][] => {
 const buildTransactItems = (
   record: NormalizedReportRecord,
   tableName: string,
-): TransactWriteCommandInput['TransactItems'] => {
+): TransactItem[] => {
   const reportItem: Record<string, unknown> = {
     PK: `PLAYER#${record.playerId}`,
     SK: record.sortKey,
@@ -231,6 +369,8 @@ const buildTransactItems = (
     ingestionId: record.ingestionId,
     sourceBucket: record.sourceBucket,
     sourceKey: record.sourceKey,
+    correlationId: record.correlationId,
+    ingestStartedAt: record.ingestStartedAt,
     GSI1PK: `REPORT#${record.reportId}`,
     GSI1SK: `REPORT#${record.reportId}`,
   };
@@ -262,13 +402,13 @@ const buildTransactItems = (
     ':playerId': record.playerId,
   };
 
-  const updateSegments: string[] = [
+  const updateSegments = [
     'reportCount = if_not_exists(reportCount, :zero) + :one',
-    'lastReportAt = :ts',
     'lastReportId = :reportId',
-    'lastCoachId = :coachId',
     'lastReportSk = :lastSk',
-    'lastReportTimestampKey = :tsKey',
+    'lastCoachId = :coachId',
+    'lastReportAt = :ts',
+    'lastReportKey = :tsKey',
     'updatedAt = :updatedAt',
     'entityType = if_not_exists(entityType, :entityType)',
     'playerId = if_not_exists(playerId, :playerId)',
@@ -294,6 +434,11 @@ const buildTransactItems = (
     updateValues[':ingestionId'] = record.ingestionId;
   }
 
+  if (record.correlationId) {
+    updateSegments.push('lastCorrelationId = :correlationId');
+    updateValues[':correlationId'] = record.correlationId;
+  }
+
   if (record.sourceBucket) {
     updateSegments.push('lastSourceBucket = :sourceBucket');
     updateValues[':sourceBucket'] = record.sourceBucket;
@@ -302,6 +447,11 @@ const buildTransactItems = (
   if (record.sourceKey) {
     updateSegments.push('lastSourceKey = :sourceKey');
     updateValues[':sourceKey'] = record.sourceKey;
+  }
+
+  if (record.ingestStartedAt) {
+    updateSegments.push('lastIngestStartedAt = :ingestStartedAt');
+    updateValues[':ingestStartedAt'] = record.ingestStartedAt;
   }
 
   const updateExpression = `SET ${updateSegments.join(', ')}`;
@@ -333,34 +483,23 @@ const buildTransactItems = (
 };
 
 const isConditionalFailure = (error: unknown): boolean => {
-  if (!error || typeof error !== 'object') {
-    return false;
-  }
-
-  const candidate = error as { name?: string; CancellationReasons?: Array<{ Code?: string | undefined }> };
-
-  if (candidate.name === 'ConditionalCheckFailedException') {
-    return true;
-  }
-
-  if (candidate.name === 'TransactionCanceledException' && Array.isArray(candidate.CancellationReasons)) {
-    return candidate.CancellationReasons.some(
-      (reason) => reason && reason.Code === 'ConditionalCheckFailed',
-    );
-  }
-
-  return false;
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { name?: string; CancellationReasons?: Array<{ Code?: string }> };
+  if (err.name !== 'TransactionCanceledException') return false;
+  return (err.CancellationReasons ?? []).some((reason) => reason.Code === 'ConditionalCheckFailed');
 };
 
 const groupRecordsByUniquePlayer = (
   records: NormalizedReportRecord[],
+  maxRecords: number,
 ): NormalizedReportRecord[][] => {
   const groups: NormalizedReportRecord[][] = [];
 
   for (const record of records) {
     let placed = false;
     for (const group of groups) {
-      if (!group.some((existing) => existing.playerId === record.playerId) && group.length < MAX_RECORDS_PER_TRANSACTION) {
+      const hasSamePlayer = group.some((existing) => existing.playerId === record.playerId);
+      if (!hasSamePlayer && group.length < maxRecords) {
         group.push(record);
         placed = true;
         break;
@@ -379,12 +518,14 @@ const executeTransactions = async (
   records: NormalizedReportRecord[],
   tableName: string,
 ): Promise<void> => {
-  const groups = groupRecordsByUniquePlayer(records);
+  const groups = groupRecordsByUniquePlayer(records, Math.max(1, MAX_RECORDS_PER_TRANSACTION));
   for (const group of groups) {
-    const command = new TransactWriteCommand({
+    const commandInput: TransactWriteCommandInput & { ReturnCancellationReasons?: boolean } = {
       TransactItems: group.flatMap((record) => buildTransactItems(record, tableName)),
       ReturnCancellationReasons: true,
-    });
+    };
+
+    const command = new TransactWriteCommand(commandInput);
 
     await dynamoDb.send(command);
   }
@@ -392,10 +533,36 @@ const executeTransactions = async (
 
 export const handler = async (event: PersistBatchEvent): Promise<PersistBatchResult> => {
   const tableName = ensureTableName();
+  const correlationId =
+    typeof event.correlationId === 'string' && event.correlationId.trim().length > 0
+      ? event.correlationId.trim()
+      : undefined;
+  const traceHeader =
+    typeof event.traceHeader === 'string' && event.traceHeader.trim().length > 0
+      ? event.traceHeader.trim()
+      : undefined;
+
+  annotateTraceContext(correlationId, event.ingestionId, traceHeader);
+
   const normalizedReports = normalizeReports(event);
+  const ingestStartedAt =
+    normalizedReports.find((record) => record.ingestStartedAt)?.ingestStartedAt ??
+    (typeof event.ingestStartedAt === 'string' && event.ingestStartedAt.trim().length > 0
+      ? event.ingestStartedAt.trim()
+      : undefined);
+  const resolveIngestDuration = (): number | undefined => computeDurationMs(ingestStartedAt, Date.now());
 
   if (normalizedReports.length === 0) {
-    return { tableName, total: 0, processed: 0, skipped: 0 };
+    const summary: PersistBatchResult = {
+      tableName,
+      total: 0,
+      processed: 0,
+      skipped: 0,
+      correlationId,
+      ingestDurationMs: resolveIngestDuration(),
+    };
+    await publishDurationMetric('ingest_duration', summary.ingestDurationMs, 'success', correlationId);
+    return summary;
   }
 
   let processed = 0;
@@ -416,7 +583,10 @@ export const handler = async (event: PersistBatchEvent): Promise<PersistBatchRes
           total: normalizedReports.length,
           processed,
           skipped,
+          correlationId,
+          ingestDurationMs: resolveIngestDuration(),
         };
+        await publishDurationMetric('ingest_duration', summary.ingestDurationMs, 'error', correlationId);
         throw new PersistBatchError(
           (error as Error).message || 'Failed to persist batch',
           chunk.map((record) => ({ reportId: record.reportId, message: (error as Error).message || 'Unknown error' })),
@@ -448,16 +618,24 @@ export const handler = async (event: PersistBatchEvent): Promise<PersistBatchRes
       total: normalizedReports.length,
       processed,
       skipped,
+      correlationId,
+      ingestDurationMs: resolveIngestDuration(),
     };
+    await publishDurationMetric('ingest_duration', summary.ingestDurationMs, 'error', correlationId);
     throw new PersistBatchError('Failed to persist one or more reports', failures, summary);
   }
 
-  return {
+  const outcome = skipped > 0 ? 'partial' : 'success';
+  const summary: PersistBatchResult = {
     tableName,
     total: normalizedReports.length,
     processed,
     skipped,
+    correlationId,
+    ingestDurationMs: resolveIngestDuration(),
   };
+  await publishDurationMetric('ingest_duration', summary.ingestDurationMs, outcome, correlationId);
+  return summary;
 };
 
 export const __internal = {

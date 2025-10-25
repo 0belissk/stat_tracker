@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -57,6 +59,20 @@ public class AwsClientsConfig {
             .credentialsProvider(DefaultCredentialsProvider.create());
     if (ebEndpoint != null && !ebEndpoint.isBlank()) {
       builder.endpointOverride(URI.create(ebEndpoint));
+    }
+    return builder.build();
+  }
+
+  @Bean
+  CloudWatchClient cloudWatchClient(
+      @Value("${app.aws.region}") String region,
+      @Value("${app.aws.cloudwatch-endpoint:}") String cloudWatchEndpoint) {
+    CloudWatchClientBuilder builder =
+        CloudWatchClient.builder()
+            .region(Region.of(region))
+            .credentialsProvider(DefaultCredentialsProvider.create());
+    if (cloudWatchEndpoint != null && !cloudWatchEndpoint.isBlank()) {
+      builder.endpointOverride(URI.create(cloudWatchEndpoint));
     }
     return builder.build();
   }

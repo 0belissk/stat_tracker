@@ -310,6 +310,9 @@ def test_csv_upload_to_email_delivery(aws_clients):
         "REPORTS_TABLE_NAME": reports_table,
     }
 
+    correlation_id = "corr-" + ingestion_id
+    ingest_started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
     stage_start = time.perf_counter()
     reset_caches()
     with applied_env(quality_env):
@@ -318,6 +321,9 @@ def test_csv_upload_to_email_delivery(aws_clients):
                 "ingestionId": ingestion_id,
                 "sourceBucket": raw_bucket,
                 "sourceKey": csv_key,
+                "ingestStartedAt": ingest_started_at,
+                "correlationId": correlation_id,
+                "traceHeader": "Root=1-abcdef01-abcdef0123456789;Parent=abcdef0123456789",
                 "reports": list(reports),
             },
             None,
@@ -336,12 +342,13 @@ def test_csv_upload_to_email_delivery(aws_clients):
     persist_result = _invoke_node_handler(PERSIST_BATCH_DIST, quality_result, persist_env)
     timings["persistence"] = time.perf_counter() - stage_start
 
-    assert persist_result == {
-        "tableName": reports_table,
-        "total": len(reports),
-        "processed": len(reports),
-        "skipped": 0,
-    }
+    assert persist_result["tableName"] == reports_table
+    assert persist_result["total"] == len(reports)
+    assert persist_result["processed"] == len(reports)
+    assert persist_result["skipped"] == 0
+    assert persist_result["correlationId"] == correlation_id
+    assert isinstance(persist_result["ingestDurationMs"], (int, float))
+    assert persist_result["ingestDurationMs"] >= 0
 
     report_bucket = "player-report-texts"
     audit_bucket = "email-delivery-audit"
@@ -404,6 +411,9 @@ def test_csv_upload_to_email_delivery(aws_clients):
                 "recipientName": report["playerName"],
                 "s3Bucket": report_bucket,
                 "s3Key": report_key,
+                "ingestStartedAt": ingest_started_at,
+                "correlationId": correlation_id,
+                "traceHeader": "Root=1-abcdef01-abcdef0123456789;Parent=abcdef0123456789",
             },
         }
         _invoke_node_handler(NOTIFY_READY_DIST, notify_event, notify_env)
