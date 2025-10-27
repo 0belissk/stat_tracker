@@ -86,6 +86,19 @@ data "aws_iam_policy_document" "ecs_task_base" {
     resources = [local.event_bus_arn]
   }
 
+  statement {
+    sid     = "PublishCustomMetrics"
+    effect  = "Allow"
+    actions = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = [var.custom_metrics_namespace]
+    }
+  }
+
 }
 
 data "aws_iam_policy_document" "ecs_task" {
@@ -173,6 +186,19 @@ data "aws_iam_policy_document" "lambda_extra" {
     effect  = "Allow"
     actions   = ["events:PutEvents"]
     resources = [local.event_bus_arn]
+  }
+
+  statement {
+    sid     = "PublishCustomMetrics"
+    effect  = "Allow"
+    actions = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = [var.custom_metrics_namespace]
+    }
   }
 }
 

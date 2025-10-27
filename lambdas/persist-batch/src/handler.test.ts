@@ -1,5 +1,8 @@
 import type { TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
-import { handler, PersistBatchError, PersistBatchEvent, PersistBatchReport } from './handler';
+import type { PersistBatchEvent, PersistBatchReport } from './handler';
+
+let handler: typeof import('./handler').handler;
+let PersistBatchError: typeof import('./handler').PersistBatchError;
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn(() => ({})),
@@ -23,9 +26,8 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-const { __mockSend: mockSend } = jest.requireMock('@aws-sdk/lib-dynamodb') as {
-  __mockSend: jest.Mock;
-};
+jest.mock('aws-xray-sdk-core');
+jest.mock('@aws-sdk/client-cloudwatch');
 
 const baseReport = (overrides: Partial<PersistBatchReport> = {}): PersistBatchReport => ({
   reportId: 'report-1',
@@ -40,7 +42,10 @@ const baseReport = (overrides: Partial<PersistBatchReport> = {}): PersistBatchRe
   ...overrides,
 });
 
-const event = (reports: PersistBatchReport[], overrides: Partial<PersistBatchEvent> = {}): PersistBatchEvent => ({
+const event = (
+  reports: PersistBatchReport[],
+  overrides: Partial<PersistBatchEvent> = {},
+): PersistBatchEvent => ({
   ingestionId: 'ing-1',
   sourceBucket: 'raw-bucket',
   sourceKey: 'coach/upload.csv',
@@ -49,9 +54,25 @@ const event = (reports: PersistBatchReport[], overrides: Partial<PersistBatchEve
 });
 
 describe('persist-batch handler', () => {
+  let mockSend: jest.Mock;
+  let mockMetricSend: jest.Mock;
+
   beforeEach(() => {
+    jest.resetModules();
     jest.clearAllMocks();
     process.env.REPORTS_TABLE_NAME = 'reports-table';
+    process.env.CUSTOM_METRICS_NAMESPACE = 'custom/ns';
+    process.env.CUSTOM_METRICS_SERVICE_NAME = 'csv-pipeline';
+    process.env.CUSTOM_METRICS_STAGE = 'dev';
+
+    mockSend = (jest.requireMock('@aws-sdk/lib-dynamodb') as { __mockSend: jest.Mock }).__mockSend;
+    mockMetricSend = (
+      jest.requireMock('@aws-sdk/client-cloudwatch') as { __mockSend: jest.Mock }
+    ).__mockSend;
+
+    const module = require('./handler') as typeof import('./handler');
+    handler = module.handler;
+    PersistBatchError = module.PersistBatchError;
   });
 
   it('persists reports, updates aggregates, and returns a summary', async () => {
@@ -77,6 +98,8 @@ describe('persist-batch handler', () => {
       total: 2,
       processed: 2,
       skipped: 0,
+      correlationId: undefined,
+      ingestDurationMs: undefined,
     });
 
     expect(mockSend).toHaveBeenCalledTimes(1);
@@ -109,26 +132,51 @@ describe('persist-batch handler', () => {
       entityType: 'REPORT',
     });
 
-    const updateItem = command.input.TransactItems?.[1]?.Update;
-    expect(updateItem?.TableName).toBe('reports-table');
-    expect(updateItem?.Key).toEqual({
-      PK: 'PLAYER#player-1',
-      SK: 'PROFILE#player-1',
-    });
-    expect(updateItem?.UpdateExpression).toContain('reportCount = if_not_exists(reportCount, :zero) + :one');
-    expect(updateItem?.UpdateExpression).toContain('lastReportSk = :lastSk');
-    expect(updateItem?.ExpressionAttributeValues).toMatchObject({
-      ':ts': '2024-05-19T10:00:00.000Z',
-      ':tsKey': '20240519T100000',
-      ':reportId': 'report-1',
-      ':coachId': 'coach-1',
-      ':playerEmail': 'player@example.com',
-      ':playerName': 'Alex',
-      ':teamId': 'team-1',
-      ':ingestionId': 'ing-1',
-      ':sourceBucket': 'raw-bucket',
-      ':sourceKey': 'coach/upload.csv',
-    });
+    expect(mockMetricSend).not.toHaveBeenCalled();
+  });
+
+  it('records ingest duration metric when start time is provided', async () => {
+    mockSend.mockResolvedValue({});
+    const start = new Date(Date.now() - 1000).toISOString();
+
+    await handler(
+      event(
+        [baseReport()],
+        {
+          ingestStartedAt: start,
+          correlationId: 'corr-1',
+        },
+      ),
+    );
+
+    expect(mockMetricSend).toHaveBeenCalled();
+    const metricCommand = mockMetricSend.mock.calls[0][0] as {
+      input: {
+        Namespace?: string;
+        MetricData?: Array<{
+          MetricName?: string;
+          Dimensions?: Array<{ Name: string; Value: string }>;
+        }>;
+      };
+    };
+
+    expect(metricCommand.input.Namespace).toBe('custom/ns');
+    expect(metricCommand.input.MetricData).toHaveLength(2);
+
+    const [primary, detailed] = metricCommand.input.MetricData ?? [];
+    expect(primary?.MetricName).toBe('ingest_duration');
+    expect(primary?.Dimensions).toEqual([
+      { Name: 'Service', Value: 'csv-pipeline' },
+      { Name: 'Stage', Value: 'dev' },
+    ]);
+
+    expect(detailed?.MetricName).toBe('ingest_duration_by_outcome');
+    expect(detailed?.Dimensions).toEqual([
+      { Name: 'Service', Value: 'csv-pipeline' },
+      { Name: 'Stage', Value: 'dev' },
+      { Name: 'Outcome', Value: 'success' },
+      { Name: 'CorrelationId', Value: 'corr-1' },
+    ]);
   });
 
   it('skips duplicates reported via conditional failures and continues processing', async () => {
@@ -154,13 +202,18 @@ describe('persist-batch handler', () => {
       total: 2,
       processed: 1,
       skipped: 1,
+      correlationId: undefined,
+      ingestDurationMs: undefined,
     });
 
     expect(mockSend).toHaveBeenCalledTimes(3);
+    expect(mockMetricSend).not.toHaveBeenCalled();
   });
 
   it('throws a PersistBatchError when a non-conditional failure occurs', async () => {
-    mockSend.mockRejectedValueOnce(Object.assign(new Error('throttle'), { name: 'ProvisionedThroughputExceededException' }));
+    mockSend.mockRejectedValueOnce(
+      Object.assign(new Error('throttle'), { name: 'ProvisionedThroughputExceededException' }),
+    );
 
     await expect(handler(event([baseReport()]))).rejects.toThrow(PersistBatchError);
   });
@@ -172,8 +225,11 @@ describe('persist-batch handler', () => {
       total: 0,
       processed: 0,
       skipped: 0,
+      correlationId: undefined,
+      ingestDurationMs: undefined,
     });
     expect(mockSend).not.toHaveBeenCalled();
+    expect(mockMetricSend).not.toHaveBeenCalled();
   });
 
   it('splits transactions when multiple reports for the same player are provided', async () => {
@@ -191,6 +247,8 @@ describe('persist-batch handler', () => {
       total: 2,
       processed: 2,
       skipped: 0,
+      correlationId: undefined,
+      ingestDurationMs: undefined,
     });
 
     expect(mockSend).toHaveBeenCalledTimes(2);

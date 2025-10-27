@@ -27,3 +27,13 @@ output "log_group_name" {
   description = "CloudWatch Logs group used for Step Functions execution logs"
   value       = aws_cloudwatch_log_group.state_machine.name
 }
+
+output "dashboard_name" {
+  description = "CloudWatch dashboard showing ingest_duration"
+  value       = aws_cloudwatch_dashboard.pipeline.dashboard_name
+}
+
+output "ingest_duration_alarm_arn" {
+  description = "CloudWatch alarm ARN monitoring ingest_duration p95"
+  value       = aws_cloudwatch_metric_alarm.ingest_duration.arn
+}

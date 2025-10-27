@@ -29,6 +29,7 @@ This iteration extends the secure-by-default scaffolding with an operable ECS de
 - `players_api` app environment overrides inside the module call — replace `REPORTS_KEY_PREFIX` with `todo: (S3 prefix for report objects)` or remove if unused.
 - `notify_report_ready_secret_name` — Secrets Manager name containing email templates & sender configuration.
 - `csv_validate_lambda_arn`, `csv_transform_lambda_arn`, `csv_quality_check_lambda_arn`, `csv_persist_lambda_arn` — supply the Lambda ARNs wired into the Step Functions pipeline (for example, deployments of `lambdas/csv-validate`, `lambdas/stats-quality-check`, and `lambdas/persist-batch`).
+- Ensure the deployed `lambdas/persist-batch` function exports `CUSTOM_METRICS_NAMESPACE`, `CUSTOM_METRICS_SERVICE_NAME`, and `CUSTOM_METRICS_STAGE` (for example via its IaC or console configuration) so ingest duration metrics land in the namespace consumed by the dashboards/alarms.
 - `raw_upload_retention_days` — lifecycle retention in days for raw CSV uploads.
 - Adjust `csv_pipeline_event_source` / `csv_validated_event_detail_type` if you need to emit different EventBridge metadata (defaults to `stat.tracker.csv` / `csv.validated`).
 
