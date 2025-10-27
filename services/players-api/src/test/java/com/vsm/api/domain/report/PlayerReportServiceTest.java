@@ -10,7 +10,7 @@ import org.mockito.Mockito;
 class PlayerReportServiceTest {
 
   private final CoachReportRepository repository = Mockito.mock(CoachReportRepository.class);
-  private final PlayerReportService service = new PlayerReportService(repository);
+  private final PlayerReportService service = new PlayerReportService(repository, 20, 50);
 
   @Test
   void defaultsLimitWhenNull() {
@@ -30,5 +30,16 @@ class PlayerReportServiceTest {
     service.listReports("player-1", 500, null);
 
     verify(repository).listReports("player-1", 50, null);
+  }
+
+  @Test
+  void sanitizesConfiguredLimits() {
+    PlayerReportService customService = new PlayerReportService(repository, -5, 3);
+    PlayerReportPage page = new PlayerReportPage(List.of(), null);
+    when(repository.listReports("player-1", 1, null)).thenReturn(page);
+
+    customService.listReports("player-1", null, null);
+
+    verify(repository).listReports("player-1", 1, null);
   }
 }
