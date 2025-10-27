@@ -68,6 +68,17 @@
       <artifactId>eventbridge</artifactId>
     </dependency>
 
+    <!-- CloudWatch (custom metrics) -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>cloudwatch</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>apache-client</artifactId>
+    </dependency>
+
     <!-- Security: JWT Resource Server -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

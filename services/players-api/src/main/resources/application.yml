@@ -32,8 +32,28 @@ app:
     dynamodb-endpoint: ${DYNAMODB_ENDPOINT:}
     s3-endpoint: ${S3_ENDPOINT:} # optional local override
     eventbridge-endpoint: ${EVENTBRIDGE_ENDPOINT:} # optional local override
+    sdk:
+      http:
+        max-connections: ${AWS_HTTP_MAX_CONNECTIONS:128}
+        connection-max-idle: ${AWS_HTTP_CONNECTION_MAX_IDLE:30s}
+        connection-time-to-live: ${AWS_HTTP_CONNECTION_TTL:5m}
+        connection-timeout: ${AWS_HTTP_CONNECTION_TIMEOUT:2s}
+        connection-acquisition-timeout: ${AWS_HTTP_CONNECTION_ACQUIRE_TIMEOUT:1s}
+        socket-timeout: ${AWS_HTTP_SOCKET_TIMEOUT:30s}
+        tcp-keep-alive: ${AWS_HTTP_TCP_KEEP_ALIVE:true}
+      timeouts:
+        api-call: ${AWS_API_CALL_TIMEOUT:30s}
+        api-attempt: ${AWS_API_ATTEMPT_TIMEOUT:10s}
+      retry:
+        mode: ${AWS_RETRY_MODE:standard}
+        max-attempts: ${AWS_RETRY_MAX_ATTEMPTS:3}
+        backoff-base: ${AWS_RETRY_BACKOFF_BASE:200ms}
+        backoff-max: ${AWS_RETRY_BACKOFF_MAX:5s}
+        enable-throttled-backoff: ${AWS_RETRY_ENABLE_THROTTLED_BACKOFF:true}
   reports:
     table-name: ${REPORTS_TABLE_NAME:vsm-main}
+    default-page-size: ${REPORTS_DEFAULT_PAGE_SIZE:20}
+    max-page-size: ${REPORTS_MAX_PAGE_SIZE:50}
   s3:
     reportsBucket: "${REPORTS_BUCKET_NAME:Todo: S3 reports bucket name}"
     keyPrefix: "${REPORTS_KEY_PREFIX:Todo: Optional prefix like 'reports/'}"
