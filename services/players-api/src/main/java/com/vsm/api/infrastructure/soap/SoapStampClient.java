@@ -60,8 +60,8 @@ public class SoapStampClient {
       @Value("${app.soap.connect-timeout:2s}") Duration connectTimeout,
       @Value("${app.soap.read-timeout:5s}") Duration readTimeout) {
     HttpUrlConnectionMessageSender messageSender = new HttpUrlConnectionMessageSender();
-    messageSender.setConnectionTimeout(Math.toIntExact(connectTimeout.toMillis()));
-    messageSender.setReadTimeout(Math.toIntExact(readTimeout.toMillis()));
+    messageSender.setConnectionTimeout(connectTimeout);
+    messageSender.setReadTimeout(readTimeout);
     this.webServiceTemplate = builder.messageSenders(messageSender).build();
     this.endpointUrl = endpointUrl;
     this.soapAction = soapAction;
