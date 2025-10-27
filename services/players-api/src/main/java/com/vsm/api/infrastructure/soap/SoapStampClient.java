@@ -1,6 +1,7 @@
 package com.vsm.api.infrastructure.soap;
 
 import java.io.StringReader;
+import java.time.Duration;
 import java.util.Optional;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -18,6 +19,7 @@ import org.springframework.ws.client.core.WebServiceMessageCallback;
 import org.springframework.ws.client.core.WebServiceMessageExtractor;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import org.springframework.ws.soap.SoapMessage;
+import org.springframework.ws.transport.http.HttpUrlConnectionMessageSender;
 import org.springframework.xml.transform.StringResult;
 import org.springframework.xml.transform.StringSource;
 import org.w3c.dom.Document;
@@ -54,8 +56,13 @@ public class SoapStampClient {
   public SoapStampClient(
       WebServiceTemplateBuilder builder,
       @Value("${app.soap.endpoint-url:}") String endpointUrl,
-      @Value("${app.soap.soap-action:}") String soapAction) {
-    this.webServiceTemplate = builder.build();
+      @Value("${app.soap.soap-action:}") String soapAction,
+      @Value("${app.soap.connect-timeout:2s}") Duration connectTimeout,
+      @Value("${app.soap.read-timeout:5s}") Duration readTimeout) {
+    HttpUrlConnectionMessageSender messageSender = new HttpUrlConnectionMessageSender();
+    messageSender.setConnectionTimeout(Math.toIntExact(connectTimeout.toMillis()));
+    messageSender.setReadTimeout(Math.toIntExact(readTimeout.toMillis()));
+    this.webServiceTemplate = builder.messageSenders(messageSender).build();
     this.endpointUrl = endpointUrl;
     this.soapAction = soapAction;
   }

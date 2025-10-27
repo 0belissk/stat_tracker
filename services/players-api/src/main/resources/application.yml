@@ -74,3 +74,5 @@ app:
   soap:
     endpoint-url: "${SOAP_ECHO_ENDPOINT_URL:Todo: SOAP EchoString endpoint URL}"
     soap-action: "${SOAP_ECHO_ACTION:Todo: SOAP action header for EchoString invocation}"
+    connect-timeout: ${SOAP_ECHO_CONNECT_TIMEOUT:2s}
+    read-timeout: ${SOAP_ECHO_READ_TIMEOUT:5s}

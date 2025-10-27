@@ -12,3 +12,5 @@ app:
   soap:
     endpoint-url: ""
     soap-action: ""
+    connect-timeout: 2s
+    read-timeout: 5s
