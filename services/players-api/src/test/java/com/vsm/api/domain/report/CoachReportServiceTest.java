@@ -8,9 +8,11 @@ import static org.mockito.Mockito.verify;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
 import com.vsm.api.infrastructure.audit.AuditRepository;
 import com.vsm.api.infrastructure.events.ReportEventPublisher;
+import com.vsm.api.infrastructure.soap.SoapStampClient;
 import com.vsm.api.infrastructure.storage.S3ReportStorage;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
@@ -22,9 +24,11 @@ class CoachReportServiceTest {
   private final S3ReportStorage storage = Mockito.mock(S3ReportStorage.class);
   private final ReportEventPublisher eventPublisher = Mockito.mock(ReportEventPublisher.class);
   private final AuditRepository auditRepository = Mockito.mock(AuditRepository.class);
+  private final SoapStampClient soapStampClient = Mockito.mock(SoapStampClient.class);
 
   private final CoachReportService service =
-      new CoachReportService(repository, renderer, storage, eventPublisher, auditRepository);
+      new CoachReportService(
+          repository, renderer, storage, eventPublisher, auditRepository, soapStampClient);
 
   @Test
   void createDelegatesToRepository() {
@@ -40,12 +44,14 @@ class CoachReportServiceTest {
     Mockito.when(renderer.render(report)).thenReturn("Rendered report");
     Mockito.when(storage.store(report, "Rendered report"))
         .thenReturn("reports/player-1/report.txt");
+    Mockito.when(soapStampClient.fetchStamp(report.reportId())).thenReturn(Optional.of("echo"));
 
     service.create(report);
 
     verify(renderer).render(report);
     verify(storage).store(report, "Rendered report");
-    verify(repository).save(report);
+    verify(soapStampClient).fetchStamp(report.reportId());
+    verify(repository).save(report, "echo");
     verify(repository)
         .updateS3Key(
             report.playerId(),
@@ -72,14 +78,17 @@ class CoachReportServiceTest {
     Mockito.when(renderer.render(report)).thenReturn("Rendered report");
     Mockito.when(storage.store(report, "Rendered report"))
         .thenReturn("reports/player-1/report.txt");
+    Mockito.when(soapStampClient.fetchStamp(report.reportId())).thenReturn(Optional.empty());
 
     doThrow(ConditionalCheckFailedException.builder().message("exists").build())
         .when(repository)
-        .save(report);
+        .save(report, null);
 
     assertThrows(ReportAlreadyExistsException.class, () -> service.create(report));
 
     verify(storage).store(report, "Rendered report");
+    verify(soapStampClient).fetchStamp(report.reportId());
+    verify(repository).save(report, null);
     verify(repository)
         .updateS3Key(
             report.playerId(),

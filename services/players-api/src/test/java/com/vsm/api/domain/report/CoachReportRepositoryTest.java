@@ -36,7 +36,7 @@ class CoachReportRepositoryTest {
             "2024-01-01T00:00:00Z",
             "coach-123");
 
-    repository.save(report);
+    repository.save(report, "soap:2024-01-01T00:00:00Z");
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -58,6 +58,7 @@ class CoachReportRepositoryTest {
     assertNotNull(item.get("createdAt").s());
     assertEquals("great", item.get("categories").m().get("serving").s());
     assertFalse(item.containsKey("s3Key"));
+    assertEquals("soap:2024-01-01T00:00:00Z", item.get("soapStamp").s());
   }
 
   @Test
@@ -110,7 +111,9 @@ class CoachReportRepositoryTest {
                         "createdAt",
                         AttributeValue.fromS("2024-01-01T00:05:00Z"),
                         "s3Key",
-                        AttributeValue.fromS("reports/player-1/report.txt")))
+                        AttributeValue.fromS("reports/player-1/report.txt"),
+                        "soapStamp",
+                        AttributeValue.fromS("soap:2024-01-01T00:00:00Z")))
                 .lastEvaluatedKey(
                     Map.of(
                         "PK",
@@ -140,6 +143,7 @@ class CoachReportRepositoryTest {
     assertEquals(Instant.parse("2024-01-01T00:05:00Z"), summary.createdAt());
     assertEquals("coach-123", summary.coachId());
     assertEquals("reports/player-1/report.txt", summary.s3Key());
+    assertEquals("soap:2024-01-01T00:00:00Z", summary.soapStamp());
     assertEquals("2024-01-01T00:00:00Z#2024-01-01T00:00:00Z", page.nextCursor());
   }
 }

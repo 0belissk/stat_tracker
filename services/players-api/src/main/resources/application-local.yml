@@ -9,3 +9,8 @@ spring:
 app:
   aws:
     dynamodb-endpoint: ${DYNAMODB_ENDPOINT:http://localhost:8000}
+  soap:
+    endpoint-url: ""
+    soap-action: ""
+    connect-timeout: 2s
+    read-timeout: 5s

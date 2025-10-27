@@ -52,6 +52,7 @@ public class PlayerReportsController {
         summary.reportTimestamp(),
         summary.createdAt(),
         summary.coachId(),
-        summary.s3Key());
+        summary.s3Key(),
+        summary.soapStamp());
   }
 }

@@ -33,7 +33,7 @@ public class CoachReportRepository {
     this.tableName = tableName;
   }
 
-  public void save(CoachReport report) {
+  public void save(CoachReport report, String soapStamp) {
     Map<String, AttributeValue> item = new HashMap<>();
     String reportTimestampIso = report.reportTimestamp().toString();
     String reportTimestampKey = toSortKeyTimestamp(report.reportTimestamp());
@@ -54,6 +54,9 @@ public class CoachReportRepository {
     Map<String, AttributeValue> cats = new HashMap<>();
     report.categories().forEach((k, v) -> cats.put(k, AttributeValue.fromS(v)));
     item.put("categories", AttributeValue.fromM(cats));
+    if (soapStamp != null && !soapStamp.isBlank()) {
+      item.put("soapStamp", AttributeValue.fromS(soapStamp));
+    }
 
     PutItemRequest request =
         PutItemRequest.builder()
@@ -157,7 +160,8 @@ public class CoachReportRepository {
     }
     String coachId = stringValue(item.get("coachId"));
     String s3Key = stringValue(item.get("s3Key"));
-    return new PlayerReportSummary(reportId, reportTimestamp, createdAt, coachId, s3Key);
+    String soapStamp = stringValue(item.get("soapStamp"));
+    return new PlayerReportSummary(reportId, reportTimestamp, createdAt, coachId, s3Key, soapStamp);
   }
 
   private String stringValue(AttributeValue value) {
