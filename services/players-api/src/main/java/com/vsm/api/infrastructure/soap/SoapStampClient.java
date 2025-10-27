@@ -74,9 +74,7 @@ public class SoapStampClient {
     try {
       String responseXml =
           webServiceTemplate.sendAndReceive(
-              endpointUrl,
-              requestCallback(requestXml),
-              responseExtractor());
+              endpointUrl, requestCallback(requestXml), responseExtractor());
 
       if (!StringUtils.hasText(responseXml)) {
         return Optional.empty();
