@@ -45,7 +45,8 @@ class PlayerReportsControllerTest {
             Instant.parse("2024-01-01T00:00:00Z"),
             Instant.parse("2024-01-01T00:05:00Z"),
             "coach-123",
-            "reports/player-1/report.txt");
+            "reports/player-1/report.txt",
+            "soap:2024-01-01T00:00:00Z");
     when(playerReportService.listReports("player-1", null, null))
         .thenReturn(new PlayerReportPage(List.of(summary), "2024-01-02T00:00:00Z"));
 
@@ -54,6 +55,7 @@ class PlayerReportsControllerTest {
         .andExpect(jsonPath("$.items[0].reportId").value("2024-01-01T00:00:00Z"))
         .andExpect(jsonPath("$.items[0].coachId").value("coach-123"))
         .andExpect(jsonPath("$.items[0].s3Key").value("reports/player-1/report.txt"))
+        .andExpect(jsonPath("$.items[0].soapStamp").value("soap:2024-01-01T00:00:00Z"))
         .andExpect(jsonPath("$.nextCursor").value("2024-01-02T00:00:00Z"));
 
     verify(playerReportService).listReports("player-1", null, null);

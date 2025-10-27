@@ -79,6 +79,12 @@
       <artifactId>apache-client</artifactId>
     </dependency>
 
+    <!-- SOAP client -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web-services</artifactId>
+    </dependency>
+
     <!-- Security: JWT Resource Server -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

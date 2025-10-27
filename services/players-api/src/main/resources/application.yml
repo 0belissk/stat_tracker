@@ -71,3 +71,6 @@ app:
     allowed-origins: ${ALLOWED_ORIGINS:}
   security:
     max-payload-bytes: ${MAX_PAYLOAD_BYTES:1048576}
+  soap:
+    endpoint-url: "${SOAP_ECHO_ENDPOINT_URL:Todo: SOAP EchoString endpoint URL}"
+    soap-action: "${SOAP_ECHO_ACTION:Todo: SOAP action header for EchoString invocation}"

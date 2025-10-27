@@ -3,6 +3,7 @@ package com.vsm.api.domain.report;
 import com.vsm.api.domain.report.exception.ReportAlreadyExistsException;
 import com.vsm.api.infrastructure.audit.AuditRepository;
 import com.vsm.api.infrastructure.events.ReportEventPublisher;
+import com.vsm.api.infrastructure.soap.SoapStampClient;
 import com.vsm.api.infrastructure.storage.S3ReportStorage;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -19,29 +20,33 @@ public class CoachReportService {
   private final S3ReportStorage storage;
   private final ReportEventPublisher events;
   private final AuditRepository audit;
+  private final SoapStampClient soapStampClient;
 
   public CoachReportService(
       CoachReportRepository repository,
       ReportTextRenderer renderer,
       S3ReportStorage storage,
       ReportEventPublisher events,
-      AuditRepository audit) {
+      AuditRepository audit,
+      SoapStampClient soapStampClient) {
     this.repository = repository;
     this.renderer = renderer;
     this.storage = storage;
     this.events = events;
     this.audit = audit;
+    this.soapStampClient = soapStampClient;
   }
 
   public void create(@NotNull @Valid CoachReport report) {
     // a) Render & store text first (safe overwrite for retries)
     String text = renderer.render(report);
     String s3Key = storage.store(report, text);
+    String soapStamp = soapStampClient.fetchStamp(report.reportId()).orElse(null);
 
     boolean duplicate = false;
     try {
       // b) Persist core report (idempotent via conditional)
-      repository.save(report);
+      repository.save(report, soapStamp);
     } catch (ConditionalCheckFailedException e) {
       duplicate = true; // existing report
     }

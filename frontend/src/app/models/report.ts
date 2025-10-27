@@ -16,6 +16,7 @@ export interface PlayerReportListItem {
   createdAt: string;
   coachId: string;
   s3Key?: string | null;
+  soapStamp?: string | null;
 }
 
 export interface PlayerReportListResponse {

@@ -30,6 +30,7 @@ import { ReportsApiService } from '../services/reports-api.service';
           <div class="row">
             <span>Created: {{ report.createdAt | date: 'short' }}</span>
             <span *ngIf="report.s3Key">Storage key: {{ report.s3Key }}</span>
+            <span *ngIf="report.soapStamp">SOAP stamp: {{ report.soapStamp }}</span>
           </div>
         </li>
       </ul>
