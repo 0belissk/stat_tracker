@@ -120,4 +120,27 @@ describe('csv-validate handler', () => {
 
     expect(mockSend).not.toHaveBeenCalled();
   });
+
+  it('allows metadata columns like teamId without flagging them as categories', async () => {
+    mockSend.mockImplementation(async (command: { __type: string; input: any }) => {
+      if (command.__type === 'GetObjectCommand') {
+        return {
+          Body: {
+            transformToString: async () =>
+              'playerId,playerEmail,teamId,serving\nplayer-1,player@example.com,team-123,Great job\n',
+          },
+        };
+      }
+      if (command.__type === 'PutObjectCommand') {
+        throw new Error('Should not write error report when metadata columns are present');
+      }
+      throw new Error('Unexpected command');
+    });
+
+    await handler(event('coach-1/upload-with-team-id.csv'));
+
+    expect(
+      mockSend.mock.calls.filter(([cmd]: [{ __type: string }]) => cmd.__type === 'PutObjectCommand'),
+    ).toHaveLength(0);
+  });
 });

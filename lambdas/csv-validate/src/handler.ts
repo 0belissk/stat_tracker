@@ -36,7 +36,7 @@ interface ErrorReport {
 }
 
 const REQUIRED_COLUMNS = new Set(['playerId', 'playerEmail']);
-const OPTIONAL_COLUMNS = new Set(['playerName']);
+const OPTIONAL_COLUMNS = new Set(['playerName', 'teamId']);
 
 const rowSchema = z
   .object({
@@ -45,7 +45,7 @@ const rowSchema = z
   })
   .passthrough()
   .superRefine((row, ctx) => {
-    const categories = Object.entries(row).filter(
+    const categories = Object.entries(row as CsvRow).filter(
       ([key]) => !REQUIRED_COLUMNS.has(key) && !OPTIONAL_COLUMNS.has(key),
     );
 
