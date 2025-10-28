@@ -26,7 +26,10 @@ Target SLO: **CSV upload → email delivery < 60 seconds (p95)**. Automated inte
    - Actions:
      1. Download the error file; share with coach for corrections.
      2. Confirm CSV header matches expected columns (`playerId`, `playerEmail`, categories).
-     3. Rerun pipeline by re-uploading corrected CSV.
+     3. If the report mentions metadata columns (`playerName`, `teamId`), verify they are allowed and blank values are expected.
+        Use `npm test --prefix lambdas/csv-validate -- bad-team-metadata` with [`docs/data/bad-team-metadata.csv`](../data/bad-team-metadata.csv)
+        to confirm the validator fix is in place.
+     4. Rerun pipeline by re-uploading corrected CSV.
 
 2. **Quality check failures**
    - Symptoms: Step Function enters `SendToDlq`; EventBridge detail shows `status=failed` and `failures` array.
@@ -41,7 +44,8 @@ Target SLO: **CSV upload → email delivery < 60 seconds (p95)**. Automated inte
    - Actions:
      1. Inspect CloudWatch logs for `TransactionCanceledException` details.
      2. Verify table capacity / IAM permissions.
-     3. If conditional failures due to duplicates, confirm replays are idempotent.
+      3. If conditional failures due to duplicates, confirm replays are idempotent.
+      4. Ensure metadata columns propagated from CSV (e.g., `teamId`) match DynamoDB item expectations.
 
 4. **Email delivery issues**
    - Symptoms: Step Function succeeds but players report missing emails; SES metrics show delivery issues.
